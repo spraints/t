@@ -14,8 +14,8 @@ module T
         require 't/commands/stop'
         T::Commands::Stop.new
       when 'today'
-        require 't/commands/since'
-        T::Commands::Since.new(:today)
+        require 't/commands/today'
+        T::Commands::Today.new
       when 'since'
         require 't/commands/since'
         T::Commands::Since.new

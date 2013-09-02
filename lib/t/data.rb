@@ -41,6 +41,18 @@ module T
           ((Time.parse(stop) - Time.parse(start)) / 60).to_i
         end
       end
+
+      def minutes_between(range_start, range_stop)
+        if stop.nil? || start.nil?
+          0
+        else
+          effective_start = [Time.parse(start), range_start].max
+          effective_stop  = [Time.parse(stop),  range_stop ].min
+          duration = effective_stop - effective_start
+          return 0 if duration < 0
+          (duration / 60).to_i
+        end
+      end
     end
   end
 end
