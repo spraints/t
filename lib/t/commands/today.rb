@@ -1,26 +1,19 @@
 require 't'
-require 't/data'
+require 't/commands/since'
 
 module T
   module Commands
-    class Today
-      def initialize(options = {})
-        @stdout = options.fetch(:out) { $stdout }
-        @file   = options.fetch(:file) { T::DATA_FILE }
-        @time   = options.fetch(:time) { Time }
+    class Today < Since
+      def range_start
+        @range_start ||= Time.parse(@time.now.strftime(T::DATE_FORMAT))
       end
 
-      def run
-        data = Data.new(@file)
-        now = @time.now.strftime(T::TIME_FORMAT)
-        today_start = Time.parse(@time.now.strftime(T::DATE_FORMAT))
-        today_stop  = today_start + 86400
-        total = data.entries.each { |e| e.stop ||= now }.inject(0) { |sum, e| sum + e.minutes_between(today_start, today_stop) }
-        if total == 0
-          @stdout.puts "You have not worked today."
-        else
-          @stdout.puts "You have worked for #{total} minutes today."
-        end
+      def range_stop
+        @range_stop ||= range_start + 86400
+      end
+
+      def period_description
+        "today"
       end
     end
   end

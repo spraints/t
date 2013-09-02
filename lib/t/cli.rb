@@ -16,9 +16,13 @@ module T
       when 'today'
         require 't/commands/today'
         T::Commands::Today.new
-      when 'since'
-        require 't/commands/since'
-        T::Commands::Since.new
+      when 'week'
+        require 't/commands/week'
+        T::Commands::Week.new
+      when 'path'
+        require 't'
+        puts T::DATA_FILE
+        exit 0
       when 'edit'
         require 't'
         system ENV['EDITOR'], T::DATA_FILE
