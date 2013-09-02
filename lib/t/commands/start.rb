@@ -15,7 +15,7 @@ module T
         if entry = data.entries.detect { |e| e.stop.nil? }
           @stdout.puts "You already started working, at #{entry.start}!"
         else
-          data.start_entry(@time.now.strftime("%Y-%m-%d %H:%M"))
+          data.start_entry(@time.now.strftime(T::TIME_FORMAT))
           @stdout.puts "Starting work."
         end
       end

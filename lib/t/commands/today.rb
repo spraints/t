@@ -12,8 +12,8 @@ module T
 
       def run
         data = Data.new(@file)
-        now = @time.now.strftime("%Y-%m-%d %H:%M")
-        today_start = Time.parse(@time.now.strftime("%Y-%m-%d"))
+        now = @time.now.strftime(T::TIME_FORMAT)
+        today_start = Time.parse(@time.now.strftime(T::DATE_FORMAT))
         today_stop  = today_start + 86400
         total = data.entries.each { |e| e.stop ||= now }.inject(0) { |sum, e| sum + e.minutes_between(today_start, today_stop) }
         if total == 0

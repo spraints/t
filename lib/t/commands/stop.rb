@@ -16,7 +16,7 @@ module T
         case started_entries.size
         when 1
           entry = started_entries.first
-          data.stop_entry(entry, @time.now.strftime("%Y-%m-%d %H:%M"))
+          data.stop_entry(entry, @time.now.strftime(T::TIME_FORMAT))
           @stdout.puts "You just worked for #{entry.minutes} minutes."
         when 0
           @stdout.puts "You haven't started working yet!"
