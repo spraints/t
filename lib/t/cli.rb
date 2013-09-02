@@ -2,7 +2,7 @@ module T
   class CLI
     def self.run!(argv)
       command = lookup(argv.shift)
-      command.run(argv)
+      command.run(*argv)
     end
 
     def self.lookup(command_name)
