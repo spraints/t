@@ -1,29 +1,18 @@
 # T
 
-TODO: Write a gem description
-
 ## Installation
-
-Add this line to your application's Gemfile:
-
-    gem 't'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
 
     $ gem install t
 
 ## Usage
 
-TODO: Write usage instructions here
+    $ t start
+    Starting work.
+    $ t stop
+    You just worked for 1 minute.
+    $ t today
+    You have worked for 1 minute today.
+    $ t since Sunday
+    You have worked for 1 minute since Sunday.
 
-## Contributing
-
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+Your data is stored in `$HOME/.t.csv`.
