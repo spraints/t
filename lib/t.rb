@@ -1,5 +1,5 @@
 require "t/version"
 
 module T
-  # Your code goes here...
+  DATA_FILE = File.join($HOME, ".t.csv")
 end

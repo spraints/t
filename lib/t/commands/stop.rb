@@ -5,7 +5,7 @@ module T
     class Stop
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
-        @file   = options.fetch(:file) { File.join($HOME, '.t.csv') }
+        @file   = options.fetch(:file) { T::DATA_FILE }
         @time   = options.fetch(:time) { Time }
       end
 
