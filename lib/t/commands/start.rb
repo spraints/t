@@ -1,3 +1,4 @@
+require 't'
 require 't/data'
 
 module T

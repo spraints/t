@@ -20,8 +20,9 @@ module T
         require 't/commands/since'
         T::Commands::Since.new
       when 'edit'
-        require 't/commands/edit'
-        T::Commands::Edit.new
+        require 't'
+        system ENV['EDITOR'], T::DATA_FILE
+        exit 0
       when nil
         puts "A command (start, stop, today, since, edit) is required."
         exit 1
