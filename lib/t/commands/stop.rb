@@ -10,6 +10,10 @@ module T
         @time   = options.fetch(:time) { Time }
       end
 
+      def legend_type
+        :none
+      end
+
       def run
         data = Data.new(@file)
         started_entries = data.entries.select { |e| e.stop.nil? }

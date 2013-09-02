@@ -3,6 +3,16 @@ module T
     def self.run!(argv)
       command = lookup(argv.shift)
       command.run(*argv)
+      show_legend(command.legend_type)
+    end
+
+    def self.show_legend(legend_type)
+      case legend_type
+      when :week
+        puts (1..5).to_a.map { |d| "#{d*8}h=#{d*8*60}m" }.join(' ')
+      when :day
+        puts "8h=#{8*60}m"
+      end
     end
 
     def self.lookup(command_name)

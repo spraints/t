@@ -7,7 +7,10 @@ module T
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
-        @tail   = options.fetch(:tail) { (1..5).to_a.map { |d| "#{d*8}h=#{d*8*60}m" }.join(' ') }
+      end
+
+      def legend_type
+        :week
       end
 
       def run

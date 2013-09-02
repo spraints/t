@@ -4,7 +4,7 @@ require 'support/command_helpers'
 require 't/commands/all'
 
 describe T::Commands::All do
-  subject(:command) { described_class.new(:out => stdout, :file => t_file, :tail => nil) }
+  subject(:command) { described_class.new(:out => stdout, :file => t_file) }
   include CommandHelpers
 
   context 'with no file' do

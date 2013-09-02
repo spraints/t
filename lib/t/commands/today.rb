@@ -4,6 +4,10 @@ require 't/commands/since'
 module T
   module Commands
     class Today < Since
+      def legend_type
+        :day
+      end
+
       def range_start
         @range_start ||= Time.parse(@time.now.strftime(T::DATE_FORMAT))
       end

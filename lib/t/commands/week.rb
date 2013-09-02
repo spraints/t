@@ -4,6 +4,10 @@ require 't/commands/since'
 module T
   module Commands
     class Week < Since
+      def legend_type
+        :week
+      end
+
       def range_start
         @range_start ||= Time.parse(@time.now.strftime(T::DATE_FORMAT)) - 86400*@time.now.wday
       end
