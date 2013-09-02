@@ -43,7 +43,7 @@ E_T
 E_T
       command.run
     end
-    it { expect(stdout.string).to eq("You have worked for 60 minutes today.\n") }
+    it('assumes you worked until now') { expect(stdout.string).to eq("You have worked for 170 minutes today.\n") }
   end
 
   context 'with some entries in the file from today and yesterday' do
