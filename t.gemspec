@@ -8,13 +8,14 @@ Gem::Specification.new do |spec|
   spec.version       = T::VERSION
   spec.authors       = ["Matt Burke"]
   spec.email         = ["spraints@gmail.com"]
-  spec.description   = %q{TODO: Write a gem description}
-  spec.summary       = %q{TODO: Write a gem summary}
+  spec.description   = %q{Track time}
+  spec.summary       = %q{Track time, yo}
   spec.homepage      = ""
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)
-  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
+  spec.bindir        = 'exe'
+  spec.executables   = ['t']
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
