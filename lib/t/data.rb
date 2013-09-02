@@ -1,3 +1,5 @@
+require 'time'
+
 module T
   class Data
     def initialize(path)
@@ -15,6 +17,15 @@ module T
 
     def start_entry(time)
       entries << Entry.new(time)
+      write!
+    end
+
+    def stop_entry(entry, time)
+      entry.stop = time
+      write!
+    end
+
+    def write!
       File.open @path, 'w' do |f|
         entries.each do |entry|
           f.puts "#{entry.start},#{entry.stop}"
@@ -23,6 +34,13 @@ module T
     end
 
     class Entry < Struct.new(:start, :stop)
+      def minutes
+        if stop.nil? || start.nil?
+          0
+        else
+          ((Time.parse(stop) - Time.parse(start)) / 60).to_i
+        end
+      end
     end
   end
 end

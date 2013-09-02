@@ -1,10 +1,11 @@
 require 'spec_helper'
 require 'support/command_helpers'
 
-require 't/commands/start'
+require 't/commands/stop'
+
 require 'time'
 
-describe T::Commands::Start do
+describe T::Commands::Stop do
   subject(:command) { described_class.new(:out => stdout, :file => t_file, :time => time_stub) }
   include CommandHelpers
 
@@ -15,16 +16,16 @@ describe T::Commands::Start do
       File.unlink t_file
       command.run
     end
-    it { expect(File.read(t_file)).to eq("2013-09-08 13:45,\n") }
-    it { expect(stdout.string).to eq("Starting work.\n") }
+    it { expect(File.exists?(t_file)).to be_false }
+    it { expect(stdout.string).to eq("You haven't started working yet!\n") }
   end
 
   context 'with an empty file' do
     before do
       command.run
     end
-    it { expect(File.read(t_file)).to eq("2013-09-08 13:45,\n") }
-    it { expect(stdout.string).to eq("Starting work.\n") }
+    it { expect(File.read(t_file)).to eq("") }
+    it { expect(stdout.string).to eq("You haven't started working yet!\n") }
   end
 
   context 'with some entries in the file' do
@@ -38,12 +39,11 @@ E_T
     it { expect(File.read(t_file)).to eq(<<E_T) }
 2013-09-08 10:45,2013-09-08 11:45
 2013-09-08 11:55,2013-09-08 12:15
-2013-09-08 13:45,
 E_T
-    it { expect(stdout.string).to eq("Starting work.\n") }
+    it { expect(stdout.string).to eq("You haven't started working yet!\n") }
   end
 
-  context 'with an incomplete entry in the file' do
+  context 'with a started entry in the file' do
     before do
       File.write(t_file, <<E_T)
 2013-09-08 10:45,2013-09-08 11:45
@@ -53,8 +53,23 @@ E_T
     end
     it { expect(File.read(t_file)).to eq(<<E_T) }
 2013-09-08 10:45,2013-09-08 11:45
+2013-09-08 11:55,2013-09-08 13:45
+E_T
+    it { expect(stdout.string).to eq("You just worked for 110 minutes.\n") }
+  end
+
+  context 'with multiple started entries in the file' do
+    before do
+      File.write(t_file, <<E_T)
+2013-09-08 10:45,
 2013-09-08 11:55,
 E_T
-    it { expect(stdout.string).to eq("You already started working, at 2013-09-08 11:55!\n") }
+      command.run
+    end
+    it { expect(stdout.string).to eq("Your file has more than one work session started. Please `t edit` to fix it.\n") }
+    it { expect(File.read(t_file)).to eq(<<E_T) }
+2013-09-08 10:45,
+2013-09-08 11:55,
+E_T
   end
 end
