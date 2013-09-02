@@ -19,6 +19,9 @@ module T
       when 'week'
         require 't/commands/week'
         T::Commands::Week.new
+      when 'all'
+        require 't/commands/all'
+        T::Commands::All.new
       when 'path'
         require 't'
         puts T::DATA_FILE

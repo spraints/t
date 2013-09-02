@@ -14,6 +14,10 @@
     You have worked for 1 minute today.
     $ t week
     You have worked for 1 minute since 2013-09-01.
+    $ t all
+    2013-08-25 - 2013-08-31   2200 min
+    2013-09-01 - 2013-09-07   1758 min
+    8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m
     $ t path
     /Users/burke/.t.csv
     $ t edit
