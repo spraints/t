@@ -23,6 +23,9 @@ module T
       when 'stop'
         require 't/commands/stop'
         T::Commands::Stop.new
+      when 'status'
+        require 't/commands/status'
+        T::Commands::Status.new
       when 'today'
         require 't/commands/today'
         T::Commands::Today.new
@@ -41,7 +44,7 @@ module T
         system ENV['EDITOR'], T::DATA_FILE
         exit 0
       when nil
-        puts "A command (start, stop, today, since, edit) is required."
+        puts "A command (start, stop, status, today, since, edit) is required."
         exit 1
       else
         puts "Unsupported command: #{command_name}"
