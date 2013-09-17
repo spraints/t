@@ -10,6 +10,7 @@ describe T::Commands::Week do
   context 'with no file' do
     before do
       File.unlink t_file
+      @now = Time.parse("2013-09-07 23:59:59") # The last second of the week of 9/1.
       command.run
     end
     it { expect(stdout.string).to eq("You have not worked since 2013-09-01.\n") }
@@ -17,6 +18,7 @@ describe T::Commands::Week do
 
   context 'with an empty file' do
     before do
+      @now = Time.parse("2013-09-07 23:59:59") # The last second of the week of 9/1.
       command.run
     end
     it { expect(stdout.string).to eq("You have not worked since 2013-09-01.\n") }
