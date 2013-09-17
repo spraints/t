@@ -25,7 +25,7 @@ module T
             total = segments.inject(0, &:+)
             analysis =
               if segments.size > 1
-                ' %4d segments  avg=%dmin' % [segments.size, total / segments.size]
+                ' %4d segments  min/max/avg=%d/%d/%d min' % [segments.size, segments.min, segments.max, total / segments.size]
               else
                 ''
               end
