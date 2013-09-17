@@ -9,7 +9,7 @@ module T
       end
 
       def range_start
-        @range_start ||= Time.parse(@time.now.strftime(T::DATE_FORMAT))
+        @range_start ||= @time.now.to_date.to_time
       end
 
       def range_stop

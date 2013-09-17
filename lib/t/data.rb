@@ -33,6 +33,22 @@ module T
       end
     end
 
+    def earliest_time
+      Time.parse(entries.map(&:start).compact.min)
+    end
+
+    def latest_time
+      Time.parse(entries.map(&:stop).compact.max)
+    end
+
+    def earliest_date
+      earliest_time.to_date.to_time
+    end
+
+    def latest_date
+      latest_time.to_date.to_time
+    end
+
     class Entry < Struct.new(:start, :stop)
       def minutes
         if stop.nil? || start.nil?

@@ -16,9 +16,8 @@ module T
       def run
         data = Data.new(@file)
         if data.entries.any?
-          earliest = Time.parse(data.entries.map(&:start).compact.min)
-          latest   = Time.parse(data.entries.map(&:stop).compact.max)
-          earliest = Time.parse(earliest.strftime(T::DATE_FORMAT))
+          earliest = data.earliest_date
+          latest   = data.latest_time
           start_of_week = earliest - 86400 * earliest.wday
           while start_of_week < latest
             end_of_week = start_of_week + 7*86400
