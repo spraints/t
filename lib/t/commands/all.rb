@@ -23,14 +23,16 @@ module T
           start_of_week = earliest - 86400 * earliest.wday
           while start_of_week < latest
             end_of_week = start_of_week + 7*86400
-            segments = data.entries.map { |e| e.minutes_between(start_of_week, end_of_week) }.select { |x| x > 0 }
+            days = (1..7).map { |d| [start_of_week + (d-1)*86400, start_of_week + d*86400] }
+            day_segments = days.map { |day| data.entries.map { |e| e.minutes_between(*day) }.select { |x| x > 0 } }
+            segments = day_segments.flatten
             total = segments.inject(0, &:+)
             analysis =
               if segments.size > 1
                 mean = total / segments.size
                 max = segments.max
                 stddev = Math.sqrt(segments.inject(0.0) { |accum, segment| accum + (segment - mean)**2 } / (segments.size - 1))
-                spark = segments.map { |segment| Sparks[segment * Sparks.size / max] || Sparks.last }.join('')
+                spark = day_segments.select { |x| x.size > 0 }.map { |day_segment| day_segment.map { |segment| Sparks[segment * Sparks.size / max] || Sparks.last }.join('') }.join(' ')
                 ' %4d segments  min/avg/max/stddev=%3d/%3d/%3d/%3d  %s' % [segments.size, segments.min, mean, max, stddev, spark]
               else
                 ''
