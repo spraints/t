@@ -25,7 +25,9 @@ module T
             total = segments.inject(0, &:+)
             analysis =
               if segments.size > 1
-                ' %4d segments  min/max/avg=%d/%d/%d min' % [segments.size, segments.min, segments.max, total / segments.size]
+                mean = total / segments.size
+                stddev = Math.sqrt(segments.inject(0.0) { |accum, segment| accum + (segment - mean)**2 } / (segments.size - 1))
+                ' %4d segments  min/avg/max/stddev=%3d/%3d/%3d/%3d' % [segments.size, segments.min, mean, segments.max, stddev]
               else
                 ''
               end

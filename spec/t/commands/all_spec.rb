@@ -36,7 +36,7 @@ E_T
     end
 
     it { expect(stdout.string).to eq(<<ALL) }
-2013-07-28 - 2013-08-03     59 min    2 segments  min/max/avg=29/30/29 min
+2013-07-28 - 2013-08-03     59 min    2 segments  min/avg/max/stddev= 29/ 29/ 30/  1
 2013-08-04 - 2013-08-10      0 min
 2013-08-11 - 2013-08-17     61 min
 2013-08-18 - 2013-08-24     62 min
