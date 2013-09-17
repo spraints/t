@@ -44,7 +44,7 @@ module T
         system ENV['EDITOR'], T::DATA_FILE
         exit 0
       when nil
-        puts "A command (start, stop, status, today, since, edit) is required."
+        puts "A command (start, stop, status, today, since, path, edit) is required."
         exit 1
       else
         puts "Unsupported command: #{command_name}"
