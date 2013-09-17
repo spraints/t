@@ -13,6 +13,8 @@ module T
         :week
       end
 
+      Sparks = %w(▁ ▂ ▃ ▄ ▅ ▆ ▇ )
+
       def run
         data = Data.new(@file)
         if data.entries.any?
@@ -26,8 +28,10 @@ module T
             analysis =
               if segments.size > 1
                 mean = total / segments.size
+                max = segments.max
                 stddev = Math.sqrt(segments.inject(0.0) { |accum, segment| accum + (segment - mean)**2 } / (segments.size - 1))
-                ' %4d segments  min/avg/max/stddev=%3d/%3d/%3d/%3d' % [segments.size, segments.min, mean, segments.max, stddev]
+                spark = segments.map { |segment| Sparks[segment * Sparks.size / max] || Sparks.last }.join('')
+                ' %4d segments  min/avg/max/stddev=%3d/%3d/%3d/%3d  %s' % [segments.size, segments.min, mean, max, stddev, spark]
               else
                 ''
               end
