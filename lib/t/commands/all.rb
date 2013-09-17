@@ -21,8 +21,15 @@ module T
           start_of_week = earliest - 86400 * earliest.wday
           while start_of_week < latest
             end_of_week = start_of_week + 7*86400
-            total = data.entries.inject(0) { |sum, e| sum + e.minutes_between(start_of_week, end_of_week) }
-            @stdout.puts "#{start_of_week.strftime(T::DATE_FORMAT)} - #{(end_of_week-1).strftime(T::DATE_FORMAT)}   #{'%4d' % total} min"
+            segments = data.entries.map { |e| e.minutes_between(start_of_week, end_of_week) }.select { |x| x > 0 }
+            total = segments.inject(0, &:+)
+            analysis =
+              if segments.size > 1
+                ' %4d segments  avg=%dmin' % [segments.size, total / segments.size]
+              else
+                ''
+              end
+            @stdout.puts "#{start_of_week.strftime(T::DATE_FORMAT)} - #{(end_of_week-1).strftime(T::DATE_FORMAT)}   #{'%4d' % total} min#{analysis}"
             start_of_week = end_of_week
           end
         end
