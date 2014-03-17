@@ -54,7 +54,7 @@ module T
         if stop.nil? || start.nil?
           0
         else
-          ((Time.parse(stop) - Time.parse(start)) / 60).to_i
+          ((parse_time(stop) - parse_time(start)) / 60).to_i
         end
       end
 
@@ -62,12 +62,20 @@ module T
         if stop.nil? || start.nil?
           0
         else
-          effective_start = [Time.parse(start), range_start].max
-          effective_stop  = [Time.parse(stop),  range_stop ].min
+          effective_start = [parse_time(start), range_start].max
+          effective_stop  = [parse_time(stop),  range_stop ].min
           duration = effective_stop - effective_start
           return 0 if duration < 0
           (duration / 60).to_i
         end
+      end
+
+      private
+
+      def parse_time(s)
+        Time.parse(s)
+      rescue
+        p s ; raise
       end
     end
   end
