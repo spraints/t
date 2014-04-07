@@ -50,11 +50,13 @@ module T
     end
 
     class Entry < Struct.new(:start, :stop)
+      @@parsed_times = {}
+
       def minutes
         if stop.nil? || start.nil?
           0
         else
-          ((parse_time(stop) - parse_time(start)) / 60).to_i
+          ((stop_time - start_time) / 60).to_i
         end
       end
 
@@ -62,8 +64,8 @@ module T
         if stop.nil? || start.nil?
           0
         else
-          effective_start = [parse_time(start), range_start].max
-          effective_stop  = [parse_time(stop),  range_stop ].min
+          effective_start = [start_time, range_start].max
+          effective_stop  = [stop_time,  range_stop ].min
           duration = effective_stop - effective_start
           return 0 if duration < 0
           (duration / 60).to_i
@@ -71,6 +73,14 @@ module T
       end
 
       private
+
+      def start_time
+        start && @@parsed_times[start] ||= parse_time(start)
+      end
+
+      def stop_time
+        stop && @@parsed_times[stop] ||= parse_time(stop)
+      end
 
       def parse_time(s)
         Time.parse(s)

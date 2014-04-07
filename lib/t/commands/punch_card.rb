@@ -22,9 +22,9 @@ module T
         bucket_count = @terminal_columns - LineHeaderWidth
         bucket_seconds = (7*86400.0) / bucket_count
         bucket_minutes = bucket_seconds / 60.0
-        each_week(data) do |start_of_week, end_of_week|
+        each_week(data) do |start_of_week, end_of_week, entries|
           buckets = (1..bucket_count).map { |n| [start_of_week + (n-1)*bucket_seconds, start_of_week + n*bucket_seconds] }
-          bucket_segments = buckets.map { |bucket| data.entries.inject(0) { |n, e| n + e.minutes_between(*bucket) } }
+          bucket_segments = buckets.map { |bucket| entries.inject(0) { |n, e| n + e.minutes_between(*bucket) } }
           total = 0
           analysis = bucket_segments.map do |min|
             total += min
@@ -49,7 +49,7 @@ module T
           start_of_week = earliest - 86400 * earliest.wday
           while start_of_week < latest
             end_of_week = start_of_week + 7*86400
-            yield start_of_week, end_of_week
+            yield start_of_week, end_of_week, data.entries
             start_of_week = end_of_week
           end
         end
