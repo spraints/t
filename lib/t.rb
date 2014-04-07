@@ -5,4 +5,6 @@ module T
 
   DATE_FORMAT = "%Y-%m-%d"
   TIME_FORMAT = "%Y-%m-%d %H:%M"
+
+  DEFAULT_SPARKS = %w(▁ ▂ ▃ ▄ ▅ ▆ ▇ )
 end

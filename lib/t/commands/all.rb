@@ -7,14 +7,12 @@ module T
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
-        @sparks = options.fetch(:sparks) { DefaultSparks }
+        @sparks = options.fetch(:sparks) { T::DEFAULT_SPARKS }
       end
 
       def legend_type
         :week
       end
-
-      DefaultSparks = %w(▁ ▂ ▃ ▄ ▅ ▆ ▇ )
 
       def run
         data = Data.new(@file)
@@ -42,7 +40,6 @@ module T
             start_of_week = end_of_week
           end
         end
-        @stdout.puts @tail if @tail
       end
     end
   end
