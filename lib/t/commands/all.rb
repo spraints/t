@@ -7,13 +7,14 @@ module T
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
+        @sparks = options.fetch(:sparks) { DefaultSparks }
       end
 
       def legend_type
         :week
       end
 
-      Sparks = %w(▁ ▂ ▃ ▄ ▅ ▆ ▇ )
+      DefaultSparks = %w(▁ ▂ ▃ ▄ ▅ ▆ ▇ )
 
       def run
         data = Data.new(@file)
@@ -32,7 +33,7 @@ module T
                 mean = total / segments.size
                 max = segments.max
                 stddev = Math.sqrt(segments.inject(0.0) { |accum, segment| accum + (segment - mean)**2 } / (segments.size - 1))
-                spark = day_segments.select { |x| x.size > 0 }.map { |day_segment| day_segment.map { |segment| Sparks[segment * Sparks.size / max] || Sparks.last }.join('') }.join('  ')
+                spark = day_segments.select { |x| x.size > 0 }.map { |day_segment| day_segment.map { |segment| @sparks[segment * @sparks.size / max] || @sparks.last }.join('') }.join('  ')
                 ' %4d segments  min/avg/max/stddev=%3d/%3d/%3d/%3d  %s' % [segments.size, segments.min, mean, max, stddev, spark]
               else
                 ''
