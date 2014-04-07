@@ -72,8 +72,6 @@ module T
         end
       end
 
-      private
-
       def start_time
         start && @@parsed_times[start] ||= parse_time(start)
       end
@@ -81,6 +79,8 @@ module T
       def stop_time
         stop && @@parsed_times[stop] ||= parse_time(stop)
       end
+
+      private
 
       def parse_time(s)
         Time.parse(s)
