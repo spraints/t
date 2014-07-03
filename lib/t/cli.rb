@@ -38,6 +38,9 @@ module T
       when 'punchcard'
         require 't/commands/punch_card'
         T::Commands::PunchCard.new
+      when 'csv'
+        require 't/commands/csv'
+        T::Commands::CSV.new
       when 'path'
         require 't'
         puts T::DATA_FILE
