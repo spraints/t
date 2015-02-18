@@ -41,6 +41,9 @@ module T
       when 'csv'
         require 't/commands/csv'
         T::Commands::CSV.new
+      when 'pto-weeks'
+        require 't/commands/pto_by_week'
+        T::Commands::PtoByWeek.new
       when 'path'
         require 't'
         puts T::DATA_FILE
@@ -50,7 +53,7 @@ module T
         system ENV['EDITOR'], T::DATA_FILE
         exit 0
       when nil
-        puts "A command (start, stop, edit) or query (status, today, week, all, punchcard, path) is required."
+        puts "A command (start, stop, edit) or query (status, today, week, all, punchcard, path, pto-weeks) is required."
         exit 1
       else
         puts "Unsupported command: #{command_name}"
