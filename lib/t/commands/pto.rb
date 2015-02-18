@@ -18,11 +18,21 @@ module T
         full_week = full_week.to_i
         full_week = 5*8*60 if full_week < 1
 
+        year_totals = Hash.new(0)
+
         each_week do |week_start, week_end, entries|
           minutes_on = entries.inject(0) { |total, entry| total + entry.minutes_between(week_start, week_end) }
           minutes_off = [full_week - minutes_on, 0].max
+          year_totals[week_start.year] += minutes_off
           @stdout.printf "%s work=%4d pto=%4d\n",
             week_start.strftime(T::DATE_FORMAT), minutes_on, minutes_off
+        end
+
+        if year_totals.any?
+          @stdout.puts
+        end
+        year_totals.sort_by(&:first).each do |year, total|
+          @stdout.printf "%s total_pto=%5d days=%3d\n", year, total, total/60/8
         end
       end
 
