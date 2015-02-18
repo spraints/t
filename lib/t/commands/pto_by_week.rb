@@ -4,7 +4,7 @@ require 't/util/week_grouping'
 
 module T
   module Commands
-    class PtoByWeek
+    class Pto
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }

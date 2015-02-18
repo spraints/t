@@ -3,7 +3,7 @@ require 'support/command_helpers'
 
 require 't/commands/pto_by_week'
 
-describe T::Commands::PtoByWeek do
+describe T::Commands::Pto do
   subject(:command) { described_class.new(:out => stdout, :file => t_file) }
   include CommandHelpers
 
