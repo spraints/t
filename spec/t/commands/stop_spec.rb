@@ -16,7 +16,7 @@ describe T::Commands::Stop do
       File.unlink t_file
       command.run
     end
-    it { expect(File.exists?(t_file)).to be_false }
+    it { expect(File.exists?(t_file)).to be_falsey }
     it { expect(stdout.string).to eq("You haven't started working yet!\n") }
   end
 
