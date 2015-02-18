@@ -1,5 +1,6 @@
 require 't'
 require 't/data'
+require 't/util/week_grouping'
 
 module T
   module Commands
@@ -42,25 +43,8 @@ module T
         @sparks[[(max_spark * minutes.to_f / max_minutes).round, max_spark].min]
       end
 
-      def each_week(data)
-        if data.entries.any?
-          earliest = data.earliest_date
-          latest   = data.latest_time
-          pending_entries = []
-          future_entries = data.entries.select { |entry| entry.minutes > 0 }
-
-          start_of_week = earliest - 86400 * earliest.wday
-          while start_of_week < latest
-            end_of_week = start_of_week + 7*86400
-            current_entries, future_entries = future_entries.partition { |entry| entry.start_time < end_of_week }
-            current_entries = pending_entries + current_entries
-
-            yield start_of_week, end_of_week, current_entries
-
-            pending_entries = current_entries.select { |entry| entry.stop_time > end_of_week }
-            start_of_week = end_of_week
-          end
-        end
+      def each_week(data, &block)
+        T::Util::WeekGrouping.new(data).each_week(&block)
       end
 
       def line_header(from, to, total)
