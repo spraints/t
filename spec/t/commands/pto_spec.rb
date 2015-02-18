@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'support/command_helpers'
 
-require 't/commands/pto_by_week'
+require 't/commands/pto'
 
 describe T::Commands::Pto do
   subject(:command) { described_class.new(:out => stdout, :file => t_file) }

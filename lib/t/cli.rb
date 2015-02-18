@@ -42,7 +42,7 @@ module T
         require 't/commands/csv'
         T::Commands::CSV.new
       when 'pto'
-        require 't/commands/pto_by_week'
+        require 't/commands/pto'
         T::Commands::Pto.new
       when 'path'
         require 't'
