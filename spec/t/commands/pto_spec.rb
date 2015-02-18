@@ -39,11 +39,13 @@ E_T
       run
     end
 
-    it { expect(stdout.string).to eq("2013-08-25 work=  60 pto=2340\n2013-09-01 work= 240 pto=2160\n") }
+    it { expect(stdout.string).to match(/^2013-08-25 work=  60 pto=2340\n/) }
+    it { expect(stdout.string).to match(/^2013-09-01 work= 240 pto=2160\n/) }
 
     context "expected work week is 200 minutes" do
       let(:argv) { ["200"] }
-      it { expect(stdout.string).to eq("2013-08-25 work=  60 pto= 140\n2013-09-01 work= 240 pto=   0\n") }
+      it { expect(stdout.string).to match(/^2013-08-25 work=  60 pto= 140\n/) }
+      it { expect(stdout.string).to match(/^2013-09-01 work= 240 pto=   0\n/) }
     end
   end
 
