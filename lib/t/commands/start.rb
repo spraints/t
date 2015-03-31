@@ -8,6 +8,7 @@ module T
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
         @time   = options.fetch(:time) { Time }
+        @act    = options.fetch(:act) { T.activity_words }
       end
 
       def legend_type
@@ -17,10 +18,10 @@ module T
       def run
         data = Data.new(@file)
         if entry = data.entries.detect { |e| e.stop.nil? }
-          @stdout.puts "You already started working, at #{entry.start}!"
+          @stdout.puts "You already started #{@act.present_participle}, at #{entry.start}!"
         else
           data.start_entry(@time.now.strftime(T::TIME_FORMAT))
-          @stdout.puts "Starting work."
+          @stdout.puts "Starting #{@act.noun}."
         end
       end
     end
