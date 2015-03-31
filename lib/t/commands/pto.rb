@@ -8,6 +8,7 @@ module T
       def initialize(options = {})
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
+        @act    = options.fetch(:act) { T.activity_words }
       end
 
       def legend_type
@@ -22,9 +23,10 @@ module T
 
         each_week do |week_start, week_end, entries|
           minutes_on = entries.inject(0) { |total, entry| total + entry.minutes_between(week_start, week_end) }
+          next if minutes_on == 0
           minutes_off = [full_week - minutes_on, 0].max
           year_totals[week_start.year] += minutes_off
-          @stdout.printf "%s work=%4d pto=%4d\n",
+          @stdout.printf "%s #{@act.noun}=%4d pto=%4d\n",
             week_start.strftime(T::DATE_FORMAT), minutes_on, minutes_off
         end
 

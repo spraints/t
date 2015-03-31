@@ -66,7 +66,7 @@ E_T
 E_T
       command.run
     end
-    it { expect(stdout.string).to eq("Your file has more than one work session started. Please `t edit` to fix it.\n") }
+    it { expect(stdout.string).to eq("Your file has more than one session started. Please `t edit` to fix it.\n") }
     it { expect(File.read(t_file)).to eq(<<E_T) }
 2013-09-08 10:45,
 2013-09-08 11:55,
