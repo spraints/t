@@ -41,6 +41,9 @@ module T
       when 'csv'
         require 't/commands/csv'
         T::Commands::CSV.new
+      when 'svg'
+        require 't/commands/svg'
+        T::Commands::SVG.new
       when 'pto'
         require 't/commands/pto'
         T::Commands::Pto.new
