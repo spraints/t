@@ -18,6 +18,7 @@ module T
       def run
         data = Data.new(@file)
         csv = ::CSV.new(@stdout)
+        csv << ["week", "minutes"]
         if data.entries.any?
           earliest = data.earliest_date
           latest   = data.latest_time
