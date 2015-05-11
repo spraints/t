@@ -29,7 +29,7 @@ module T
             segments = day_segments.flatten
             total = segments.inject(0, &:+)
 
-            csv << [start_of_week, total]
+            csv << [start_of_week.strftime("%Y-%m-%d"), total]
             
             start_of_week = end_of_week
           end
