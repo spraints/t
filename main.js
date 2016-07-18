@@ -1,4 +1,4 @@
-const {app, Tray} = require('electron')
+const {app, Tray, Menu} = require('electron')
 const path = require('path')
 
 const assetsDir = path.join(__dirname, 'assets')
@@ -15,6 +15,9 @@ app.on('ready', () => {
 })
 
 const createTray = () => {
+  let menu = Menu.buildFromTemplate([
+      {label: 'Quit', click: () => app.quit()},
+  ])
   tray = new Tray(blackCircle)
-  //tray.on('click', showMenu)
+  tray.setContextMenu(menu)
 }
