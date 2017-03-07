@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 bundle install --binstubs --path .bundle --local >&/dev/null || \
   bundle install --binstubs --path .bundle
