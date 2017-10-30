@@ -38,6 +38,9 @@ module T
       when 'punchcard'
         require 't/commands/punch_card'
         T::Commands::PunchCard.new
+      when 'days'
+        require 't/commands/days'
+        T::Commands::Days.new
       when 'csv'
         require 't/commands/csv'
         T::Commands::CSV.new
