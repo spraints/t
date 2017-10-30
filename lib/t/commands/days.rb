@@ -65,8 +65,8 @@ module T
       def show(period)
         if period
           total = 0
-          days = period.days.map { |min| total += min; min == 0 ? "   " : ("%3d" % min) }.join(" | ")
-          @stdout.printf "%-23s | %s | %5d\n", period.label, days, total
+          days = period.days.map { |min| total += min; min == 0 ? "     " : ("%5d" % min) }.join(" | ")
+          @stdout.printf "%-23s | %s | %6d\n", period.label, days, total
         end
       end
 
