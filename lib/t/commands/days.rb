@@ -66,7 +66,7 @@ module T
         if period
           total = 0
           days = period.days.map { |min| total += min; min == 0 ? "     " : ("%5d" % min) }.join(" | ")
-          @stdout.printf "%-23s | %s | %6d\n", period.label, days, total
+          @stdout.printf "%-23s || %s || %6d\n", period.label, days, total
         end
       end
 
