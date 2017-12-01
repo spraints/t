@@ -62,7 +62,7 @@ module T
         system ENV['EDITOR'], T::DATA_FILE
         exit 0
       when nil
-        puts "A command (start, stop, edit) or query (status, today, week, all, punchcard, path, pto, short) is required."
+        puts "A command (start, stop, edit) or query (status, today, week, all, punchcard, days, csv, svg, pto, short, path) is required."
         exit 1
       else
         puts "Unsupported command: #{command_name}"
