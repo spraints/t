@@ -9,7 +9,7 @@ module T
         @stdout = options.fetch(:out) { $stdout }
         @file   = options.fetch(:file) { T::DATA_FILE }
         @act    = options.fetch(:act) { T.activity_words }
-        @week   = options.fetch(:week_calculator) { T::Commands::Week.new(options) }
+        @week   = T::Commands::Week.new(options)
       end
 
       def legend_type
