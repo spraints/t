@@ -13,13 +13,17 @@ module T
 
       def run
         data = Data.new(@file)
-        now = @time.now.strftime(T::TIME_FORMAT)
-        total = data.entries.each { |e| e.stop ||= now }.inject(0) { |sum, e| sum + e.minutes_between(range_start, range_stop) }
+        total = self.total(data)
         if total == 0
           @stdout.puts "You have not #{@act.past_participle} #{period_description}."
         else
           @stdout.puts "You have #{@act.past_participle} for #{total} minutes #{period_description}."
         end
+      end
+
+      def total(data)
+        now = @time.now.strftime(T::TIME_FORMAT)
+        data.entries.each { |e| e.stop ||= now }.inject(0) { |sum, e| sum + e.minutes_between(range_start, range_stop) }
       end
     end
   end
