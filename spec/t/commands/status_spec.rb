@@ -10,16 +10,18 @@ describe T::Commands::Status do
   context 'with no file' do
     before do
       File.unlink t_file
-      command.run
     end
-    it { expect(stdout.string).to eq("NOT working\n") }
+    example do
+      command.run
+      expect(stdout.string).to eq("NOT working\n")
+    end
   end
 
   context 'with an empty file' do
-    before do
+    example do
       command.run
+      expect(stdout.string).to eq("NOT working\n")
     end
-    it { expect(stdout.string).to eq("NOT working\n") }
   end
 
   context 'with some entries in the file' do
@@ -28,9 +30,11 @@ describe T::Commands::Status do
 2013-09-08 10:45,2013-09-08 11:45
 2013-09-08 11:55,2013-09-08 12:15
 E_T
-      command.run
     end
-    it { expect(stdout.string).to eq("NOT working\n") }
+    example do
+      command.run
+      expect(stdout.string).to eq("NOT working\n")
+    end
   end
 
   context 'with some incomplete entries in the file' do
@@ -39,9 +43,11 @@ E_T
 2013-09-08 10:45,2013-09-08 11:45
 2013-09-08 11:55,
 E_T
-      command.run
     end
-    it { expect(stdout.string).to eq("WORKING\n") }
+    example do
+      command.run
+      expect(stdout.string).to eq("WORKING\n")
+    end
   end
 
 end
