@@ -46,6 +46,17 @@ E_T
     it('assumes you worked until now') { expect(stdout.string).to eq("You have worked for 170 minutes today.\n") }
   end
 
+  context 'with an incomplete entry in the file and zones' do
+    before do
+      File.write(t_file, <<E_T)
+2013-09-08 10:45 #{tz_offset},2013-09-08 11:45 #{tz_offset}
+2013-09-08 11:55 #{tz_offset},
+E_T
+      command.run
+    end
+    it('assumes you worked until now') { expect(stdout.string).to eq("You have worked for 170 minutes today.\n") }
+  end
+
   context 'with some entries in the file from today and yesterday' do
     before do
       File.write(t_file, <<E_T)
