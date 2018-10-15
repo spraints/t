@@ -18,7 +18,8 @@ module T
       def run
         data = Data.new(@file)
         if entry = data.entries.detect { |e| e.stop.nil? }
-          @stdout.puts "You already started #{@act.present_participle}, at #{entry.start}!"
+          @stdout.printf "You already started %s, %d minutes ago!\n",
+            @act.present_participle, (@time.now - Time.parse(entry.start)) / 60
         else
           data.start_entry(@time.now.strftime(T::TIME_FORMAT))
           @stdout.puts "Starting #{@act.noun}."
