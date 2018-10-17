@@ -53,7 +53,22 @@ E_T
     end
     it { expect(File.read(t_file)).to eq(<<E_T) }
 2013-09-08 10:45,2013-09-08 11:45
-2013-09-08 11:55,2013-09-08 13:45
+2013-09-08 11:55,2013-09-08 13:45 #{tz_offset}
+E_T
+    it { expect(stdout.string).to eq("You just worked for 110 minutes.\n") }
+  end
+
+  context 'with a started entry in the file, no zones' do
+    before do
+      File.write(t_file, <<E_T)
+2013-09-08 10:45 #{tz_offset},2013-09-08 11:45 #{tz_offset}
+2013-09-08 11:55 #{tz_offset},
+E_T
+      command.run
+    end
+    it { expect(File.read(t_file)).to eq(<<E_T) }
+2013-09-08 10:45 #{tz_offset},2013-09-08 11:45 #{tz_offset}
+2013-09-08 11:55 #{tz_offset},2013-09-08 13:45 #{tz_offset}
 E_T
     it { expect(stdout.string).to eq("You just worked for 110 minutes.\n") }
   end
