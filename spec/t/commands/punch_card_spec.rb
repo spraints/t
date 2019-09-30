@@ -5,7 +5,7 @@ require 't/commands/punch_card'
 
 describe T::Commands::PunchCard do
   subject(:command) { described_class.new(:out => stdout, :file => t_file, :zero => "0", :sparks => %W(1 2 3 4), :cols => cols) }
-  let(:cols) { T::Commands::PunchCard::LineHeaderWidth + 24*7 } # one column per hour of the week
+  let(:cols) { T::Commands::PunchCard::LineHeaderWidth + 7 + 24*7 } # one column per hour of the week
   include CommandHelpers
 
   context 'with no file' do
@@ -44,12 +44,12 @@ E_T
     let(:lines) { stdout.string.split("\n") }
     it { expect(lines.size).to eq(6) }
     let(:empty_day) { "0"*24 }
-    it { expect(lines[0]).to eq "2013-07-28 - 2013-08-03     59 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000011000000000000#{''}000000000020000000000000#{empty_day}" }
-    it { expect(lines[1]).to eq "2013-08-04 - 2013-08-10      0 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}" }
-    it { expect(lines[2]).to eq "2013-08-11 - 2013-08-17     61 min 000000000013000000000000#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}" }
-    it { expect(lines[3]).to eq "2013-08-18 - 2013-08-24     62 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000013000000000000#{empty_day}#{empty_day}" }
-    it { expect(lines[4]).to eq "2013-08-25 - 2013-08-31     63 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000013000000000000" }
-    it { expect(lines[5]).to eq "2013-09-01 - 2013-09-07    107 min #{empty_day}#{empty_day}#{empty_day}000000000014000000000000#{''}000000000002000000000000#{empty_day}#{empty_day}" }
+    it { expect(lines[0]).to eq "2013-07-28 - 2013-08-03     59 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000011000000000000|000000000020000000000000|#{empty_day}|" }
+    it { expect(lines[1]).to eq "2013-08-04 - 2013-08-10      0 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[2]).to eq "2013-08-11 - 2013-08-17     61 min|000000000013000000000000|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[3]).to eq "2013-08-18 - 2013-08-24     62 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000013000000000000|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[4]).to eq "2013-08-25 - 2013-08-31     63 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000013000000000000|" }
+    it { expect(lines[5]).to eq "2013-09-01 - 2013-09-07    107 min|#{empty_day}|#{empty_day}|#{empty_day}|000000000014000000000000|000000000002000000000000|#{empty_day}|#{empty_day}|" }
   end
 
   context 'with some entries in the file with mixed zones' do
@@ -73,11 +73,11 @@ E_T
     let(:lines) { stdout.string.split("\n") }
     it { expect(lines.size).to eq(6) }
     let(:empty_day) { "0"*24 }
-    it { expect(lines[0]).to eq "2013-07-28 - 2013-08-03     59 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000011000000000000#{''}000000000020000000000000#{empty_day}" }
-    it { expect(lines[1]).to eq "2013-08-04 - 2013-08-10      0 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}" }
-    it { expect(lines[2]).to eq "2013-08-11 - 2013-08-17     61 min 000000000013000000000000#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}" }
-    it { expect(lines[3]).to eq "2013-08-18 - 2013-08-24     62 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000013000000000000#{empty_day}#{empty_day}" }
-    it { expect(lines[4]).to eq "2013-08-25 - 2013-08-31     63 min #{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}#{empty_day}000000000013000000000000" }
-    it { expect(lines[5]).to eq "2013-09-01 - 2013-09-07    107 min #{empty_day}#{empty_day}#{empty_day}000000000014000000000000#{''}000000000002000000000000#{empty_day}#{empty_day}" }
+    it { expect(lines[0]).to eq "2013-07-28 - 2013-08-03     59 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000011000000000000|000000000020000000000000|#{empty_day}|" }
+    it { expect(lines[1]).to eq "2013-08-04 - 2013-08-10      0 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[2]).to eq "2013-08-11 - 2013-08-17     61 min|000000000013000000000000|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[3]).to eq "2013-08-18 - 2013-08-24     62 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000013000000000000|#{empty_day}|#{empty_day}|" }
+    it { expect(lines[4]).to eq "2013-08-25 - 2013-08-31     63 min|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|#{empty_day}|000000000013000000000000|" }
+    it { expect(lines[5]).to eq "2013-09-01 - 2013-09-07    107 min|#{empty_day}|#{empty_day}|#{empty_day}|000000000014000000000000|000000000002000000000000|#{empty_day}|#{empty_day}|" }
   end
 end
