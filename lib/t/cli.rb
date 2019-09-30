@@ -41,6 +41,9 @@ module T
       when 'days'
         require 't/commands/days'
         T::Commands::Days.new
+      when 'times'
+        require 't/commands/times'
+        T::Commands::Times.new
       when 'csv'
         require 't/commands/csv'
         T::Commands::CSV.new

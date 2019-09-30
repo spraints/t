@@ -20,7 +20,8 @@ module T
 
       def run
         data = Data.new(@file)
-        bucket_count = @terminal_columns - LineHeaderWidth
+        bucket_count = @terminal_columns - LineHeaderWidth - 7
+        bucket_count -= bucket_count % 7
         bucket_seconds = (7*86400.0) / bucket_count
         bucket_minutes = bucket_seconds / 60.0
         each_week(data) do |start_of_week, end_of_week, entries|
@@ -30,8 +31,8 @@ module T
           analysis = bucket_segments.map do |min|
             total += min
             spark(min, bucket_minutes)
-          end.join
-          @stdout.puts "#{line_header(start_of_week, end_of_week, total)}#{analysis}"
+          end.each_slice(bucket_count / 7).map(&:join).join("|")
+          @stdout.puts "#{line_header(start_of_week, end_of_week, total)}#{analysis}|"
         end
       end
 
@@ -52,7 +53,7 @@ module T
       end
 
       def self.line_header(from, to, total)
-        "#{from.strftime(T::DATE_FORMAT)} - #{(to-1).strftime(T::DATE_FORMAT)}   #{'%4d' % total} min "
+        "#{from.strftime(T::DATE_FORMAT)} - #{(to-1).strftime(T::DATE_FORMAT)}   #{'%4d' % total} min|"
       end
 
       LineHeaderWidth = line_header(Time.now, Time.now, 0).size
