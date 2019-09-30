@@ -33,7 +33,8 @@ module T
           start_per_day = (0..6).map { |dow|
             day_start = week_start + dow * ONE_DAY
             day_end   = day_start + ONE_DAY
-            entry_starts.select { |t| t >= day_start && t < day_end }.min
+            t = entry_starts.select { |t| t >= day_start && t < day_end }.min
+            t && t.strftime("%H:%M")
           }
           current_week << start_per_day
           current_month << start_per_day
@@ -55,7 +56,7 @@ module T
 
       def show(period)
         if period
-          days = period.days.map { |t| t.nil? ? "     " : t.strftime("%H:%M") }.join(" | ")
+          days = period.days.map { |t| t.nil? ? "     " : t }.join(" | ")
           @stdout.printf "%-23s || %s |\n", period.label, days
         end
       end
