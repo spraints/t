@@ -15,7 +15,7 @@ docker build --rm \
 r() {
   docker run -it --rm \
     -u $(id -u):$(id -g) \
-    -w /work/rust \
+    -w /work \
     -v $(pwd):/work \
     -v ${image}-cargo:/usr/local/cargo \
     -p 8880:8880 \
