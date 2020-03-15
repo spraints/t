@@ -18,7 +18,6 @@ r() {
     -w /work \
     -v $(pwd):/work \
     -v ${image}-cargo:/usr/local/cargo \
-    -p 8880:8880 \
     $image \
     "$@"
 }

@@ -1,4 +1,4 @@
-FROM rust:1.41.0-buster
+FROM rust:1.42.0-buster
 
 ARG USERNAME=vis
 ARG USER_UID=1000
