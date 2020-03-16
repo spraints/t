@@ -43,6 +43,14 @@ impl Data {
 
         Ok(())
     }
+
+    pub fn start(&mut self, start: DateTime<Local>) {
+        self.entries.push(Entry {
+            raw: None,
+            end: None,
+            start,
+        });
+    }
 }
 
 impl Entry {
@@ -253,5 +261,19 @@ mod tests {
              2013-09-07 10:10 +0000,\n"
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_start() {
+        let mut data = Data { entries: vec![] };
+        data.start(Local.timestamp(1371371371, 0));
+        assert_eq!(
+            data.entries,
+            vec![Entry {
+                raw: None,
+                start: Local.timestamp(1371371371, 0),
+                end: None,
+            }]
+        );
     }
 }
