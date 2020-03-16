@@ -101,14 +101,6 @@ fn parse_entry(line: String) -> Result<Option<Entry>, String> {
 }
 
 fn parse_time(s: &str) -> Result<DateTime<Local>, String> {
-    let res = real_parse_time(s);
-    if let Ok(dt) = res {
-        println!("{} -> {} ({})", s, dt, dt.timestamp());
-    }
-    res
-}
-
-fn real_parse_time(s: &str) -> Result<DateTime<Local>, String> {
     match Local.datetime_from_str(s, OLD_TIME_FORMAT) {
         Ok(dt) => Ok(dt.with_timezone(&Local)),
         Err(e1) => match DateTime::parse_from_str(s, TIME_FORMAT) {
