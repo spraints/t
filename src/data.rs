@@ -1,9 +1,9 @@
 use chrono::offset::{Local, TimeZone};
 use chrono::DateTime;
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use std::io::BufRead;
 
-const DATE_FORMAT: &str = "%Y-%m-%d";
+//const DATE_FORMAT: &str = "%Y-%m-%d";
 const TIME_FORMAT: &str = "%Y-%m-%d %H:%M %z";
 const OLD_TIME_FORMAT: &str = "%Y-%m-%d %H:%M";
 
@@ -15,7 +15,7 @@ pub struct Data {
 
 #[derive(Debug, PartialEq)]
 struct Entry {
-    raw: String,
+    raw: Option<String>,
     start: DateTime<Local>,
     end: Option<DateTime<Local>>,
 }
@@ -38,9 +38,30 @@ pub fn read<T: BufRead>(file: T) -> Result<Data, String> {
 impl Data {
     pub fn write<W: Write>(&self, w: &mut W) -> Result<(), String> {
         for e in &self.entries {
-            w.write_fmt(format_args!("{}\n", e.raw.trim()))
-                .map_err(|err| format!("{}", err))?;
+            e.write(w)?;
         }
+
+        Ok(())
+    }
+}
+
+impl Entry {
+    fn write<W: Write>(&self, w: &mut W) -> Result<(), String> {
+        fn converr<T, E: Display>(res: Result<T, E>) -> Result<T, String> {
+            res.map_err(|err| format!("{}", err))
+        }
+
+        match &self.raw {
+            Some(s) => converr(w.write_fmt(format_args!("{}\n", s)))?,
+            None => {
+                converr(w.write_fmt(format_args!("{},", self.start.format(TIME_FORMAT))))?;
+                if let Some(end) = &self.end {
+                    converr(w.write_fmt(format_args!("{}", end.format(TIME_FORMAT))))?;
+                }
+                converr(w.write_str("\n"));
+            }
+        }
+
         Ok(())
     }
 }
@@ -50,12 +71,12 @@ fn parse_entry(line: String) -> Result<Option<Entry>, String> {
     match parts.len() {
         0 => return Ok(None),
         1 => Ok(Some(Entry {
-            raw: line.trim().to_string(),
+            raw: Some(line.trim().to_string()),
             start: parse_time(parts[0])?,
             end: None,
         })),
         2 => Ok(Some(Entry {
-            raw: line.trim().to_string(),
+            raw: Some(line.trim().to_string()),
             start: parse_time(parts[0])?,
             end: maybe_parse_time(parts[1])?,
         })),
@@ -113,7 +134,7 @@ mod tests {
         assert_eq!(
             parse_entries("2013-09-05 11:39")?,
             vec![Entry {
-                raw: "2013-09-05 11:39".to_string(),
+                raw: Some("2013-09-05 11:39".to_string()),
                 start: Local.timestamp(1378381140, 0),
                 end: None,
             },]
@@ -126,7 +147,7 @@ mod tests {
         assert_eq!(
             parse_entries("2013-09-05 11:39,")?,
             vec![Entry {
-                raw: "2013-09-05 11:39,".to_string(),
+                raw: Some("2013-09-05 11:39,".to_string()),
                 start: Local.timestamp(1378381140, 0),
                 end: None,
             },]
@@ -139,7 +160,7 @@ mod tests {
         assert_eq!(
             parse_entries("2013-09-05 11:39,2013-09-05 11:49")?,
             vec![Entry {
-                raw: "2013-09-05 11:39,2013-09-05 11:49".to_string(),
+                raw: Some("2013-09-05 11:39,2013-09-05 11:49".to_string()),
                 start: Local.timestamp(1378381140, 0),
                 end: Some(Local.timestamp(1378381740, 0)),
             },]
@@ -152,7 +173,7 @@ mod tests {
         assert_eq!(
             parse_entries("2013-09-05 11:39,2013-09-05 11:49\n")?,
             vec![Entry {
-                raw: "2013-09-05 11:39,2013-09-05 11:49".to_string(),
+                raw: Some("2013-09-05 11:39,2013-09-05 11:49".to_string()),
                 start: Local.timestamp(1378381140, 0),
                 end: Some(Local.timestamp(1378381740, 0)),
             },]
@@ -165,7 +186,7 @@ mod tests {
         assert_eq!(
             parse_entries("2013-09-05 11:39 -0000,2013-09-05 11:49 -1000\n")?,
             vec![Entry {
-                raw: "2013-09-05 11:39 -0000,2013-09-05 11:49 -1000".to_string(),
+                raw: Some("2013-09-05 11:39 -0000,2013-09-05 11:49 -1000".to_string()),
                 start: Local.timestamp(1378381140, 0),
                 end: Some(Local.timestamp(1378417740, 0)),
             },]
@@ -182,12 +203,12 @@ mod tests {
             )?,
             vec![
                 Entry {
-                    raw: "2013-09-05 11:39 -0000,2013-09-05 11:49 -1000".to_string(),
+                    raw: Some("2013-09-05 11:39 -0000,2013-09-05 11:49 -1000".to_string()),
                     start: Local.timestamp(1378381140, 0),
                     end: Some(Local.timestamp(1378417740, 0)),
                 },
                 Entry {
-                    raw: "2013-09-07 10:10, 2013-09-07 11:11".to_string(),
+                    raw: Some("2013-09-07 10:10, 2013-09-07 11:11".to_string()),
                     start: Local.timestamp(1378548600, 0),
                     end: Some(Local.timestamp(1378552260, 0)),
                 },
