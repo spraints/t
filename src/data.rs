@@ -72,6 +72,10 @@ impl Entry {
 
         Ok(())
     }
+
+    pub fn stop(&mut self, dt: DateTime<Local>) {
+        self.end = Some(dt);
+    }
 }
 
 fn parse_entry(line: String) -> Result<Option<Entry>, String> {
@@ -274,6 +278,24 @@ mod tests {
                 start: Local.timestamp(1371371371, 0),
                 end: None,
             }]
+        );
+    }
+
+    #[test]
+    fn test_stop() {
+        let mut entry = Entry {
+            raw: None,
+            start: Local.timestamp(1231231231, 0),
+            end: None,
+        };
+        entry.stop(Local.timestamp(1234123412, 0));
+        assert_eq!(
+            entry,
+            Entry {
+                raw: None,
+                start: Local.timestamp(1231231231, 0),
+                end: Some(Local.timestamp(1234123412, 0)),
+            }
         );
     }
 }
