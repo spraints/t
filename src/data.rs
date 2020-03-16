@@ -51,6 +51,10 @@ impl Data {
             start,
         });
     }
+
+    pub fn earliest(&self) -> Option<&DateTime<Local>> {
+        self.entries.iter().map(|entry| &entry.start).min()
+    }
 }
 
 impl Entry {
@@ -297,5 +301,18 @@ mod tests {
                 end: Some(Local.timestamp(1234123412, 0)),
             }
         );
+    }
+
+    #[test]
+    fn test_earliest() -> Result<(), String> {
+        assert_eq!(None, Data { entries: vec![] }.earliest());
+
+        let data = parse_data(
+            "2012-01-01 10:10 +0000,2012-01-01 10:40 +0000\n\
+             2011-01-01 10:10 +0000,2011-01-01 10:40 +0000\n\
+             2013-01-01 10:10 +0000,2013-01-01 10:40 +0000\n",
+        )?;
+        assert_eq!(Some(&Local.timestamp(1293876600, 0)), data.earliest());
+        Ok(())
     }
 }
