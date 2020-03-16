@@ -58,7 +58,7 @@ impl Entry {
                 if let Some(end) = &self.end {
                     converr(w.write_fmt(format_args!("{}", end.format(TIME_FORMAT))))?;
                 }
-                converr(w.write_str("\n"));
+                converr(w.write_str("\n"))?;
             }
         }
 
@@ -111,6 +111,8 @@ fn maybe_parse_time(s: &str) -> Result<Option<DateTime<Local>>, String> {
 
 #[cfg(test)]
 mod tests {
+    // Note: many of these tests only work if TZ is UTC.
+
     use super::{Data, Entry};
     use chrono::offset::{Local, TimeZone};
 
@@ -224,6 +226,32 @@ mod tests {
         let mut output = String::new();
         parse_data(input)?.write(&mut output)?;
         assert_eq!(input, output);
+        Ok(())
+    }
+
+    #[test]
+    fn test_format() -> Result<(), String> {
+        let data = Data {
+            entries: vec![
+                Entry {
+                    raw: None,
+                    start: Local.timestamp(1378381140, 0),
+                    end: Some(Local.timestamp(1378417740, 0)),
+                },
+                Entry {
+                    raw: None,
+                    start: Local.timestamp(1378548600, 0),
+                    end: None,
+                },
+            ],
+        };
+        let mut output = String::new();
+        data.write(&mut output)?;
+        assert_eq!(
+            output,
+            "2013-09-05 11:39 +0000,2013-09-05 21:49 +0000\n\
+             2013-09-07 10:10 +0000,\n"
+        );
         Ok(())
     }
 }
