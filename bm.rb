@@ -20,15 +20,16 @@ def tp(io)
   res = []
   state = Init
   data = nil
+  line = 1
   io.each_char do |c|
-  #io.read.each_char do |c|
-  #until io.eof?
-    #c = io.read(1)
     state, data, entry = state.call(c, data)
     res << entry if entry
+    line += 1 if c == "\n"
   end
   res << Time.new(*data) if data
   res
+rescue => e
+  raise "line #{line}: parse error: #{e.class.name}: #{e}"
 end
 
 D = {
@@ -58,54 +59,55 @@ F = {
 Init = ->(c, _) do
   case c
   when *DIGITS
-    [Year, [D.fetch(c), 0, 0, 0, 0, 0, nil], nil]
+    Year.call(c, [0, 0, 0, 0, 0, 0, nil])
   else
     [Init, nil, nil]
   end
 end
 
 class DigitConsumer
-  def initialize(label, len, next_char, next_state)
-    @label = label
-    @index = F.fetch(label)
-    @len = len
-    @next_char = next_char
-    @next_state = next_state
+  def self.new(label, len, next_char, next_state)
+    index = F.fetch(label)
+    stack = next_state
+    stack = Separator.new(next_char, stack) if next_char
+    fact = 1
+    len.times do
+      stack = Digit.new(index, fact, stack)
+      fact *= 10
+    end
+    stack
   end
 
-  def call(c, data)
-    case c
-    when *DIGITS
-      data[@index] = 10*data[@index] + D.fetch(c)
-      [self, data, nil]
-    when @next_char
+  class Digit
+    def initialize(index, fact, next_state)
+      @index = index
+      @fact = fact
+      @next_state = next_state
+    end
+
+    def call(c, data)
+      data[@index] += @fact * D.fetch(c)
       [@next_state, data, nil]
-    else
-      raise "error: #{@label} expected digit or #{@next_char.inspect}, got #{c.inspect} (#{data.inspect})"
     end
   end
-end
 
-MinuteIndex = F.fetch(:min)
+  class Separator
+    def initialize(_, next_state)
+      @next_state = next_state
+    end
 
-Minute = ->(c, data) do
-  case c
-  when *DIGITS
-    data[MinuteIndex] = 10*data[MinuteIndex] + D.fetch(c)
-    [Minute, data, nil]
-  when " "
-    [TZPrefix, data, nil]
-  when "\n", ","
-    [Init, nil, Time.new(*data)]
-  else
-    raise "error: min expected digit or #{" ".inspect} or #{"\n".inspect}, got #{c.inspect} (#{data.inspect})"
+    def call(c, data)
+      [@next_state, data, nil]
+    end
   end
 end
 
 TZIndex = F.fetch(:tz)
 
-TZPrefix = ->(c, data) do
+OptTZ = ->(c, data) do
   case c
+  when " "
+    [OptTZ, data, nil]
   when "+"
     data[TZIndex] = 0
     [PosTZ, data, nil]
@@ -113,7 +115,7 @@ TZPrefix = ->(c, data) do
     data[TZIndex] = 0
     [NegTZ, data, nil]
   else
-    raise "error: tz expected + or -, got #{c.inspect} (#{data.inspect})"
+    [Init, nil, Time.new(*data)]
   end
 end
 
@@ -152,6 +154,7 @@ end
 
 NegTZ = TZ.new(-1)
 PosTZ = TZ.new(1)
+Minute = DigitConsumer.new(:min, 2, nil, OptTZ)
 Hour = DigitConsumer.new(:hr, 2, ":", Minute)
 Day = DigitConsumer.new(:day, 2, " ", Hour)
 Month = DigitConsumer.new(:mon, 2, "-", Day)
