@@ -162,17 +162,17 @@ Year = DigitConsumer.new(:year, 4, "-", Month)
 
 $first = true
 def mkio
+  speak = $first
+  $first = false
   if USE_STRINGIO
-    puts "Using stringio" if $first
-    $first = false
+    puts "Using stringio" if speak
     return StringIO.new(EXAMPLE)
   end
   if USE_ARG
-    puts "Using #{ARGV[0]}" if $first
-    $first = false
+    puts "Using #{ARGV[0]}" if speak
     return File.open(ARGV[0])
   end
-  puts "Using tempfile"
+  puts "Using tempfile" if speak
   f = Tempfile.new('t-benchmarks')
   f.write(EXAMPLE)
   f.rewind
