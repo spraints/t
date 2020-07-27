@@ -32,10 +32,10 @@ impl Error for ParseError {
 }
 
 pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
-    let mut r = BufReader::new(r);
+    let mut parser = Parser::new(r);
     let mut res = vec![];
     loop {
-        match parse_entry(&mut r)? {
+        match parse_entry(&mut parser)? {
             None => break,
             Some(entry) => res.push(entry),
         }
@@ -43,100 +43,138 @@ pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
     Ok(res)
 }
 
-fn parse_entry(r: &mut impl Read) -> Result<Option<Entry>, Box<dyn Error>> {
-    match parse_time(r)? {
+struct Parser<R> {
+    reader: BufReader<R>,
+    line: usize,
+    col: usize,
+}
+
+impl<R: Read> Parser<R> {
+    fn new(r: R) -> Parser<R> {
+        Parser{
+            reader: BufReader::new(r),
+            line: 1,
+            col: 0,
+        }
+    }
+
+    fn read(&mut self) -> io::Result<Option<u8>> {
+        let mut buf = [0;1];
+        let len = self.reader.read(&mut buf)?;
+        if len == 0 {
+            return Ok(None);
+        }
+        let c = buf[0];
+        if c == b'\n' {
+            self.line = self.line + 1;
+            self.col = 0;
+        } else {
+            self.col = self.col + 1;
+        }
+        Ok(Some(c))
+    }
+
+    fn error(&self, message: String) -> Box<dyn Error> {
+        let message = format!("line {}, col {}: {}", self.line, self.col, message);
+        Box::new(ParseError{message})
+    }
+}
+
+fn parse_entry<R: Read>(parser: &mut Parser<R>) -> Result<Option<Entry>, Box<dyn Error>> {
+    match parse_time(parser)? {
         None => Ok(None),
         Some((start, true)) => Ok(Some(Entry{start: start, stop: None})),
-        Some((start, false)) => match(parse_time(r))? {
+        Some((start, false)) => match(parse_time(parser))? {
             None => Ok(Some(Entry{start: start, stop: None})),
             Some((stop, _)) => Ok(Some(Entry{start: start, stop: Some(stop)})),
         }
     }
 }
 
-fn parse_time(r: &mut impl Read) -> Result<Option<(Time, bool)>, Box<dyn Error>> {
-    match read_year(r)? {
+fn parse_time<R: Read>(parser: &mut Parser<R>) -> Result<Option<(Time, bool)>, Box<dyn Error>> {
+    match read_year(parser)? {
         None => Ok(None),
         Some(year) => {
             let mut res = Time{year, month: 0, day: 0, hour: 0, minute: 0, utc_offset: None};
-            read_expected(r, b'-')?;
-            res.month = read_number(r, 10)? as u8;
-            read_expected(r, b'-')?;
-            res.day = read_number(r, 10)? as u8;
-            read_expected(r, b' ')?;
-            res.hour = read_number(r, 10)? as u8;
-            read_expected(r, b':')?;
-            res.minute = read_number(r, 10)? as u8;
-            match read(r)? {
+            read_expected(parser, b'-')?;
+            res.month = read_number(parser, 10)? as u8;
+            read_expected(parser, b'-')?;
+            res.day = read_number(parser, 10)? as u8;
+            read_expected(parser, b' ')?;
+            res.hour = read_number(parser, 10)? as u8;
+            read_expected(parser, b':')?;
+            res.minute = read_number(parser, 10)? as u8;
+            match parser.read()? {
                 None | Some(b'\n') => Ok(Some((res, true))),
                 Some(b',') => Ok(Some((res, false))),
                 Some(b' ') => {
-                    let sign: i16 = match read(r)? {
+                    let sign: i16 = match parser.read()? {
                         Some(b'-') => -1,
                         Some(b'+') => 1,
-                        x => return Err(Box::new(ParseError{message: format!("expected +/- but got {:?}", x)})),
+                        None => return Err(parser.error("expected +/- but got EOF".to_string())),
+                        Some(x) => return Err(parser.error(format!("expected +/- but got '{}'", x as char))),
                     };
-                    let hr_off = read_number(r, 10)? as i16;
-                    let min_off = read_number(r, 10)? as i16;
+                    let hr_off = read_number(parser, 10)? as i16;
+                    let min_off = read_number(parser, 10)? as i16;
                     res.utc_offset = Some(sign * ((hr_off * 60)  + min_off));
-                    match read(r)? {
+                    match parser.read()? {
                         None => Ok(Some((res, true))),
                         Some(b'\n') => Ok(Some((res, true))),
-                        Some(x) => Err(Box::new(ParseError{message: format!("expected \\n but got {}", x)})),
+                        Some(x) => Err(parser.error(format!("expected '\\n' but got '{}'", x as char))),
                     }
                 }
-                Some(x) => Err(Box::new(ParseError{message: format!("expected newline, comma, or space, but got {}", x)})),
+                Some(x) => Err(parser.error(format!("expected newline, comma, or space, but got '{}'", x as char))),
             }
         }
     }
 }
 
-fn read(r: &mut impl Read) -> io::Result<Option<u8>> {
-    let mut buf = [0;1];
-    match r.read(&mut buf)? {
-        1 => Ok(Some(buf[0])),
-        _ => Ok(None),
-    }
-}
-
-fn read_expected(r: &mut impl Read, expected: u8) -> Result<(), Box<dyn Error>> {
-    match read(r)? {
-        None => Err(Box::new(ParseError{message: format!("expected {} but got EOF", expected)})),
+fn read_expected<R: Read>(parser: &mut Parser<R>, expected: u8) -> Result<(), Box<dyn Error>> {
+    match parser.read()? {
+        None => Err(parser.error(format!("expected '{}' but got EOF", expected as char))),
         Some(x) => if x == expected {
             Ok(())
         } else {
-            Err(Box::new(ParseError{message: format!("expected {} but got {}", expected, x)}))
+            Err(parser.error(format!("expected '{}' but got '{}'", expected as char, x as char)))
         },
     }
 }
 
-fn read_number(r: &mut impl Read, scale: u16) -> Result<u16, Box<dyn Error>> {
-    match read(r)? {
-        None => Err(Box::new(ParseError{message: "expected a digit but got EOF".to_string()})),
+fn read_number<R: Read>(parser: &mut Parser<R>, scale: u16) -> Result<u16, Box<dyn Error>> {
+    match parser.read()? {
+        None => Err(parser.error("expected a digit but got EOF".to_string())),
         Some(digit) => {
-            let digit = parse_digit(digit)?;
-            match scale {
-                1 => Ok(digit),
-                _ => Ok(digit * scale + read_number(r, scale / 10)?),
+            match parse_digit(digit) {
+                Err(err) => Err(parser.error(err)),
+                Ok(digit) =>
+                    match scale {
+                        1 => Ok(digit),
+                        _ => Ok(digit * scale + read_number(parser, scale / 10)?),
+                    }
             }
         }
     }
 }
 
-fn read_year(r: &mut impl Read) -> Result<Option<u16>, Box<dyn Error>> {
-    match read(r)? {
+fn read_year<R: Read>(parser: &mut Parser<R>) -> Result<Option<u16>, Box<dyn Error>> {
+    match parser.read()? {
         None => Ok(None),
         Some(digit) => {
-            let year = 1000 * parse_digit(digit)? + read_number(r, 100)?;
-            Ok(Some(year))
+            match parse_digit(digit) {
+                Err(err) => Err(parser.error(err)),
+                Ok(digit) => {
+                    let year = 1000 * digit + read_number(parser, 100)?;
+                    Ok(Some(year))
+                }
+            }
         }
     }
 }
 
-fn parse_digit(digit: u8) -> Result<u16, Box<dyn Error>> {
+fn parse_digit(digit: u8) -> Result<u16, String> {
     match digit {
         b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => Ok((digit - b'0') as u16),
-        x => Err(Box::new(ParseError{message: format!("expected a digit but got {}", x)})),
+        x => Err(format!("expected a digit but got '{}'", x as char)),
     }
 }
 
