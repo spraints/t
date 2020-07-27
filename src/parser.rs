@@ -1,21 +1,6 @@
+use crate::entry::{Entry, Time};
 use std::error::Error;
 use std::io::{self, BufReader, Read};
-
-#[derive(Debug, PartialEq)]
-pub struct Entry {
-    start: Time,
-    stop: Option<Time>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Time {
-    year: u16,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    utc_offset: Option<i16>,
-}
 
 #[derive(Debug)]
 struct ParseError {
