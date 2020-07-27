@@ -1,5 +1,5 @@
-use std::io::{self, BufReader, Read};
 use std::error::Error;
+use std::io::{self, BufReader, Read};
 
 #[derive(Debug, PartialEq)]
 pub struct Entry {
@@ -28,8 +28,7 @@ impl std::fmt::Display for ParseError {
     }
 }
 
-impl Error for ParseError {
-}
+impl Error for ParseError {}
 
 pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
     let mut parser = Parser::new(r);
@@ -51,7 +50,7 @@ struct Parser<R> {
 
 impl<R: Read> Parser<R> {
     fn new(r: R) -> Parser<R> {
-        Parser{
+        Parser {
             reader: BufReader::new(r),
             line: 1,
             col: 0,
@@ -59,7 +58,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn read(&mut self) -> io::Result<Option<u8>> {
-        let mut buf = [0;1];
+        let mut buf = [0; 1];
         let len = self.reader.read(&mut buf)?;
         if len == 0 {
             return Ok(None);
@@ -76,18 +75,27 @@ impl<R: Read> Parser<R> {
 
     fn error(&self, message: String) -> Box<dyn Error> {
         let message = format!("line {}, col {}: {}", self.line, self.col, message);
-        Box::new(ParseError{message})
+        Box::new(ParseError { message })
     }
 }
 
 fn parse_entry<R: Read>(parser: &mut Parser<R>) -> Result<Option<Entry>, Box<dyn Error>> {
     match parse_time(parser)? {
         None => Ok(None),
-        Some((start, true)) => Ok(Some(Entry{start: start, stop: None})),
-        Some((start, false)) => match(parse_time(parser))? {
-            None => Ok(Some(Entry{start: start, stop: None})),
-            Some((stop, _)) => Ok(Some(Entry{start: start, stop: Some(stop)})),
-        }
+        Some((start, true)) => Ok(Some(Entry {
+            start: start,
+            stop: None,
+        })),
+        Some((start, false)) => match (parse_time(parser))? {
+            None => Ok(Some(Entry {
+                start: start,
+                stop: None,
+            })),
+            Some((stop, _)) => Ok(Some(Entry {
+                start: start,
+                stop: Some(stop),
+            })),
+        },
     }
 }
 
@@ -95,7 +103,14 @@ fn parse_time<R: Read>(parser: &mut Parser<R>) -> Result<Option<(Time, bool)>, B
     match read_year(parser)? {
         None => Ok(None),
         Some(year) => {
-            let mut res = Time{year, month: 0, day: 0, hour: 0, minute: 0, utc_offset: None};
+            let mut res = Time {
+                year,
+                month: 0,
+                day: 0,
+                hour: 0,
+                minute: 0,
+                utc_offset: None,
+            };
             read_expected(parser, b'-')?;
             res.month = read_number(parser, 10)? as u8;
             read_expected(parser, b'-')?;
@@ -112,18 +127,27 @@ fn parse_time<R: Read>(parser: &mut Parser<R>) -> Result<Option<(Time, bool)>, B
                         Some(b'-') => -1,
                         Some(b'+') => 1,
                         None => return Err(parser.error("expected +/- but got EOF".to_string())),
-                        Some(x) => return Err(parser.error(format!("expected +/- but got '{}'", x as char))),
+                        Some(x) => {
+                            return Err(
+                                parser.error(format!("expected +/- but got '{}'", x as char))
+                            )
+                        }
                     };
                     let hr_off = read_number(parser, 10)? as i16;
                     let min_off = read_number(parser, 10)? as i16;
-                    res.utc_offset = Some(sign * ((hr_off * 60)  + min_off));
+                    res.utc_offset = Some(sign * ((hr_off * 60) + min_off));
                     match parser.read()? {
-                        None => Ok(Some((res, true))),
-                        Some(b'\n') => Ok(Some((res, true))),
-                        Some(x) => Err(parser.error(format!("expected '\\n' but got '{}'", x as char))),
+                        None | Some(b'\n') => Ok(Some((res, true))),
+                        Some(b',') => Ok(Some((res, false))),
+                        Some(x) => {
+                            Err(parser.error(format!("expected '\\n' but got '{}'", x as char)))
+                        }
                     }
                 }
-                Some(x) => Err(parser.error(format!("expected newline, comma, or space, but got '{}'", x as char))),
+                Some(x) => Err(parser.error(format!(
+                    "expected newline, comma, or space, but got '{}'",
+                    x as char
+                ))),
             }
         }
     }
@@ -132,48 +156,50 @@ fn parse_time<R: Read>(parser: &mut Parser<R>) -> Result<Option<(Time, bool)>, B
 fn read_expected<R: Read>(parser: &mut Parser<R>, expected: u8) -> Result<(), Box<dyn Error>> {
     match parser.read()? {
         None => Err(parser.error(format!("expected '{}' but got EOF", expected as char))),
-        Some(x) => if x == expected {
-            Ok(())
-        } else {
-            Err(parser.error(format!("expected '{}' but got '{}'", expected as char, x as char)))
-        },
+        Some(x) => {
+            if x == expected {
+                Ok(())
+            } else {
+                Err(parser.error(format!(
+                    "expected '{}' but got '{}'",
+                    expected as char, x as char
+                )))
+            }
+        }
     }
 }
 
 fn read_number<R: Read>(parser: &mut Parser<R>, scale: u16) -> Result<u16, Box<dyn Error>> {
     match parser.read()? {
         None => Err(parser.error("expected a digit but got EOF".to_string())),
-        Some(digit) => {
-            match parse_digit(digit) {
-                Err(err) => Err(parser.error(err)),
-                Ok(digit) =>
-                    match scale {
-                        1 => Ok(digit),
-                        _ => Ok(digit * scale + read_number(parser, scale / 10)?),
-                    }
-            }
-        }
+        Some(digit) => match parse_digit(digit) {
+            Err(err) => Err(parser.error(err)),
+            Ok(digit) => match scale {
+                1 => Ok(digit),
+                _ => Ok(digit * scale + read_number(parser, scale / 10)?),
+            },
+        },
     }
 }
 
 fn read_year<R: Read>(parser: &mut Parser<R>) -> Result<Option<u16>, Box<dyn Error>> {
     match parser.read()? {
         None => Ok(None),
-        Some(digit) => {
-            match parse_digit(digit) {
-                Err(err) => Err(parser.error(err)),
-                Ok(digit) => {
-                    let year = 1000 * digit + read_number(parser, 100)?;
-                    Ok(Some(year))
-                }
+        Some(digit) => match parse_digit(digit) {
+            Err(err) => Err(parser.error(err)),
+            Ok(digit) => {
+                let year = 1000 * digit + read_number(parser, 100)?;
+                Ok(Some(year))
             }
-        }
+        },
     }
 }
 
 fn parse_digit(digit: u8) -> Result<u16, String> {
     match digit {
-        b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => Ok((digit - b'0') as u16),
+        b'0' | b'1' | b'2' | b'3' | b'4' | b'5' | b'6' | b'7' | b'8' | b'9' => {
+            Ok((digit - b'0') as u16)
+        }
         x => Err(format!("expected a digit but got '{}'", x as char)),
     }
 }
@@ -186,8 +212,8 @@ mod tests {
     // - time zone or not
     // - partial entry with/without comma
 
-    use super::{Entry, Time, parse_entries};
-    use std::io::{Cursor};
+    use super::{parse_entries, Entry, Time};
+    use std::io::Cursor;
 
     #[test]
     fn test_empty() {
@@ -198,45 +224,85 @@ mod tests {
     #[test]
     fn test_start_no_tz() {
         let actual = parse_entries(Cursor::new(b"2020-01-02 12:34\n")).unwrap();
-        assert_eq!(vec![
-                   Entry{
-                       start: Time{year: 2020, month: 1, day: 2, hour: 12, minute: 34, utc_offset: None},
-                       stop: None,
-                   },
-        ], actual);
+        assert_eq!(
+            vec![Entry {
+                start: Time {
+                    year: 2020,
+                    month: 1,
+                    day: 2,
+                    hour: 12,
+                    minute: 34,
+                    utc_offset: None
+                },
+                stop: None,
+            },],
+            actual
+        );
     }
 
     #[test]
     fn test_start_with_neg_tz() {
         let actual = parse_entries(Cursor::new(b"2020-01-02 12:34 -1001\n")).unwrap();
-        assert_eq!(vec![
-                   Entry{
-                       start: Time{year: 2020, month: 1, day: 2, hour: 12, minute: 34, utc_offset: Some(-601)},
-                       stop: None,
-                   },
-        ], actual);
+        assert_eq!(
+            vec![Entry {
+                start: Time {
+                    year: 2020,
+                    month: 1,
+                    day: 2,
+                    hour: 12,
+                    minute: 34,
+                    utc_offset: Some(-601)
+                },
+                stop: None,
+            },],
+            actual
+        );
     }
 
     #[test]
     fn test_start_with_pos_tz() {
         let actual = parse_entries(Cursor::new(b"2020-01-02 12:34 +1001\n")).unwrap();
-        assert_eq!(vec![
-                   Entry{
-                       start: Time{year: 2020, month: 1, day: 2, hour: 12, minute: 34, utc_offset: Some(601)},
-                       stop: None,
-                   },
-        ], actual);
+        assert_eq!(
+            vec![Entry {
+                start: Time {
+                    year: 2020,
+                    month: 1,
+                    day: 2,
+                    hour: 12,
+                    minute: 34,
+                    utc_offset: Some(601)
+                },
+                stop: None,
+            },],
+            actual
+        );
     }
 
     #[test]
     fn test_single_entry() {
-        let actual = parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
-        assert_eq!(vec![
-                   Entry{
-                       start: Time{year: 2020, month: 1, day: 2, hour: 12, minute: 34, utc_offset: Some(240)},
-                       stop: Some(Time{year: 2020, month: 1, day: 2, hour: 13, minute: 34, utc_offset: Some(-240)}),
-                   },
-        ], actual);
+        let actual =
+            parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
+        assert_eq!(
+            vec![Entry {
+                start: Time {
+                    year: 2020,
+                    month: 1,
+                    day: 2,
+                    hour: 12,
+                    minute: 34,
+                    utc_offset: Some(-240)
+                },
+                stop: Some(Time {
+                    year: 2020,
+                    month: 1,
+                    day: 2,
+                    hour: 13,
+                    minute: 34,
+                    utc_offset: Some(-240)
+                }),
+            },],
+            actual
+        );
     }
 
     // test_single_entry_mixed_tz
