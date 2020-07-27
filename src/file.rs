@@ -132,12 +132,15 @@ impl<R: Read> Parser<R> {
     }
 
     fn read_year(&mut self) -> Result<Option<u16>, Box<dyn Error>> {
-        match self.read()? {
-            None => Ok(None),
-            Some(digit) => {
-                let digit = self.parse_digit(digit)?;
-                let year = 1000 * digit + self.read_number(100)?;
-                Ok(Some(year))
+        loop {
+            match self.read()? {
+                None => return Ok(None),
+                Some(b' ') | Some(b'\n') => (),
+                Some(digit) => {
+                    let digit = self.parse_digit(digit)?;
+                    let year = 1000 * digit + self.read_number(100)?;
+                    return Ok(Some(year));
+                }
             }
         }
     }
@@ -204,12 +207,6 @@ impl<R: Read> Parser<R> {
 
 #[cfg(test)]
 mod tests {
-    // variations:
-    // - number of lines
-    // - partial entry on last line vs complete entry
-    // - time zone or not
-    // - partial entry with/without comma
-
     use super::{parse_entries, Entry, Time};
 
     #[test]
@@ -333,13 +330,39 @@ mod tests {
     fn test_several_entries() {
         let actual = parse_entries(
             "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
-                           2020-01-03 09:00, 2020-01-03 10:30\n\
-                           2020-02-02 11:11, 2020-02-02 12:12 -0400\n"
+             2020-01-03 09:00, 2020-01-03 10:30\n\
+             2020-02-02 11:11, 2020-02-02 12:12 -0400\n"
                 .as_bytes(),
         )
         .unwrap();
         assert_eq!(3, actual.len());
     }
 
-    // test_several_entries_last_is_partial
+    #[test]
+    fn test_several_entries_last_is_partial() {
+        let actual = parse_entries(
+            "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
+             2020-01-03 09:00, 2020-01-03 10:30\n\
+             2020-02-02 11:11,\n"
+                .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(3, actual.len());
+        assert_eq!(
+            Entry {
+                start: Time {
+                    year: 2020,
+                    month: 2,
+                    day: 2,
+                    hour: 11,
+                    minute: 11,
+                    utc_offset: None,
+                },
+                stop: None,
+            },
+            actual[2]
+        );
+    }
+
+    // TODO - tests for errors?
 }
