@@ -73,25 +73,18 @@ impl<R: Read> Parser<R> {
         match self.read_year()? {
             None => Ok(None),
             Some(year) => {
-                let mut res = Time {
-                    year,
-                    month: 0,
-                    day: 0,
-                    hour: 0,
-                    minute: 0,
-                    utc_offset: None,
-                };
                 self.read_expected(b'-')?;
-                res.month = self.read_number(10)? as u8;
+                let month = self.read_number(10)? as u8;
                 self.read_expected(b'-')?;
-                res.day = self.read_number(10)? as u8;
+                let day = self.read_number(10)? as u8;
                 self.read_expected(b' ')?;
-                res.hour = self.read_number(10)? as u8;
+                let hour = self.read_number(10)? as u8;
                 self.read_expected(b':')?;
-                res.minute = self.read_number(10)? as u8;
+                let minute = self.read_number(10)? as u8;
+                let res = |tz| Time::new(year, month, day, hour, minute, tz);
                 match self.read()? {
-                    None | Some(b'\n') => Ok(Some((res, true))),
-                    Some(b',') => Ok(Some((res, false))),
+                    None | Some(b'\n') => Ok(Some((res(None), true))),
+                    Some(b',') => Ok(Some((res(None), false))),
                     Some(b' ') => {
                         let sign: i16 = match self.read()? {
                             Some(b'-') => -1,
@@ -105,7 +98,7 @@ impl<R: Read> Parser<R> {
                         };
                         let hr_off = self.read_number(10)? as i16;
                         let min_off = self.read_number(10)? as i16;
-                        res.utc_offset = Some(sign * ((hr_off * 60) + min_off));
+                        let res = res(Some(sign * ((hr_off * 60) + min_off)));
                         match self.read()? {
                             None | Some(b'\n') => Ok(Some((res, true))),
                             Some(b',') => Ok(Some((res, false))),
@@ -212,14 +205,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 12,
-                    minute: 34,
-                    utc_offset: None
-                },
+                start: Time::new(2020, 1, 2, 12, 34, None),
                 stop: None,
             }],
             actual
@@ -231,14 +217,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 12,
-                    minute: 34,
-                    utc_offset: Some(-601)
-                },
+                start: Time::new(2020, 1, 2, 12, 34, Some(-601)),
                 stop: None,
             }],
             actual
@@ -250,14 +229,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 12,
-                    minute: 34,
-                    utc_offset: Some(601)
-                },
+                start: Time::new(2020, 1, 2, 12, 34, Some(601)),
                 stop: None,
             }],
             actual
@@ -270,22 +242,8 @@ mod tests {
             parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 12,
-                    minute: 34,
-                    utc_offset: Some(-240)
-                },
-                stop: Some(Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 13,
-                    minute: 34,
-                    utc_offset: Some(-240)
-                }),
+                start: Time::new(2020, 1, 2, 12, 34, Some(-240)),
+                stop: Some(Time::new(2020, 1, 2, 13, 34, Some(-240))),
             }],
             actual
         );
@@ -297,22 +255,8 @@ mod tests {
             parse_entries("2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 12,
-                    minute: 34,
-                    utc_offset: Some(600)
-                },
-                stop: Some(Time {
-                    year: 2020,
-                    month: 1,
-                    day: 2,
-                    hour: 13,
-                    minute: 34,
-                    utc_offset: Some(-240)
-                }),
+                start: Time::new(2020, 1, 2, 12, 34, Some(600)),
+                stop: Some(Time::new(2020, 1, 2, 13, 34, Some(-240))),
             }],
             actual
         );
@@ -341,14 +285,7 @@ mod tests {
         assert_eq!(3, actual.len());
         assert_eq!(
             Entry {
-                start: Time {
-                    year: 2020,
-                    month: 2,
-                    day: 2,
-                    hour: 11,
-                    minute: 11,
-                    utc_offset: None,
-                },
+                start: Time::new(2020, 2, 2, 11, 11, None),
                 stop: None,
             },
             actual[2]

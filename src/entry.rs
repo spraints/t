@@ -27,25 +27,43 @@ impl Display for Entry {
 
 #[derive(Debug, PartialEq)]
 pub struct Time {
-    pub year: u16,
-    pub month: u8,
-    pub day: u8,
-    pub hour: u8,
-    pub minute: u8,
-    pub utc_offset: Option<i16>,
+    year: u16,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    utc_offset: Option<i16>,
 }
 
 impl Time {
     fn now() -> Self {
         let time = Local::now();
         let sec_offset = time.offset().local_minus_utc() as i16;
+        Self::new(
+            time.year() as u16,
+            time.month() as u8,
+            time.day() as u8,
+            time.hour() as u8,
+            time.minute() as u8,
+            Some(sec_offset / 60),
+        )
+    }
+
+    pub fn new(
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        utc_offset: Option<i16>,
+    ) -> Self {
         Time {
-            year: time.year() as u16,
-            month: time.month() as u8,
-            day: time.day() as u8,
-            hour: time.hour() as u8,
-            minute: time.minute() as u8,
-            utc_offset: Some(sec_offset / 60),
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            utc_offset,
         }
     }
 }
@@ -78,41 +96,20 @@ mod tests {
 
     #[test]
     fn test_time_format_no_tz() {
-        let time = Time {
-            year: 2020,
-            month: 6,
-            day: 20,
-            hour: 1,
-            minute: 7,
-            utc_offset: None,
-        };
+        let time = Time::new(2020, 6, 20, 1, 7, None);
         assert_eq!("2020-06-20 01:07", format!("{}", time));
     }
 
     #[test]
     fn test_time_format_with_tz() {
-        let time = Time {
-            year: 2020,
-            month: 6,
-            day: 20,
-            hour: 1,
-            minute: 7,
-            utc_offset: Some(-123),
-        };
+        let time = Time::new(2020, 6, 20, 1, 7, Some(-123));
         assert_eq!("2020-06-20 01:07 -0203", format!("{}", time));
     }
 
     #[test]
     fn test_entry_format_with_start() {
         let entry = Entry {
-            start: Time {
-                year: 2020,
-                month: 6,
-                day: 20,
-                hour: 1,
-                minute: 7,
-                utc_offset: None,
-            },
+            start: Time::new(2020, 6, 20, 1, 7, None),
             stop: None,
         };
         assert_eq!("2020-06-20 01:07\n", format!("{}", entry));
@@ -121,22 +118,8 @@ mod tests {
     #[test]
     fn test_entry_format_with_start_and_stop() {
         let entry = Entry {
-            start: Time {
-                year: 2020,
-                month: 6,
-                day: 20,
-                hour: 1,
-                minute: 7,
-                utc_offset: None,
-            },
-            stop: Some(Time {
-                year: 2020,
-                month: 6,
-                day: 20,
-                hour: 1,
-                minute: 8,
-                utc_offset: None,
-            }),
+            start: Time::new(2020, 6, 20, 1, 7, None),
+            stop: Some(Time::new(2020, 6, 20, 1, 8, None)),
         };
         assert_eq!("2020-06-20 01:07,2020-06-20 01:08\n", format!("{}", entry));
     }
