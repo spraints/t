@@ -1,6 +1,5 @@
-use chrono::prelude::Local;
-use chrono::{Datelike, Timelike};
 use std::fmt::{self, Display, Formatter};
+use time::OffsetDateTime;
 
 #[derive(Debug, PartialEq)]
 pub struct Entry {
@@ -37,15 +36,14 @@ pub struct Time {
 
 impl Time {
     fn now() -> Self {
-        let time = Local::now();
-        let sec_offset = time.offset().local_minus_utc() as i16;
+        let time = OffsetDateTime::now_local();
         Self::new(
             time.year() as u16,
             time.month() as u8,
             time.day() as u8,
             time.hour() as u8,
             time.minute() as u8,
-            Some(sec_offset / 60),
+            Some(time.offset().as_minutes()),
         )
     }
 
