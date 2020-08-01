@@ -83,8 +83,8 @@ impl<R: Read> Parser<R> {
                 let minute = self.read_number(10)? as u8;
                 let res = |tz| Time::new(year, month, day, hour, minute, tz);
                 match self.read()? {
-                    None | Some(b'\n') => Ok(Some((res(None), true))),
-                    Some(b',') => Ok(Some((res(None), false))),
+                    None | Some(b'\n') => Ok(Some((res(None)?, true))),
+                    Some(b',') => Ok(Some((res(None)?, false))),
                     Some(b' ') => {
                         let sign: i16 = match self.read()? {
                             Some(b'-') => -1,
@@ -98,7 +98,7 @@ impl<R: Read> Parser<R> {
                         };
                         let hr_off = self.read_number(10)? as i16;
                         let min_off = self.read_number(10)? as i16;
-                        let res = res(Some(sign * ((hr_off * 60) + min_off)));
+                        let res = res(Some(sign * ((hr_off * 60) + min_off)))?;
                         match self.read()? {
                             None | Some(b'\n') => Ok(Some((res, true))),
                             Some(b',') => Ok(Some((res, false))),
@@ -194,6 +194,10 @@ impl<R: Read> Parser<R> {
 mod tests {
     use super::{parse_entries, write_entries, Entry, Time};
 
+    fn mktime(year: u16, month: u8, day: u8, hour: u8, minute: u8, offset: Option<i16>) -> Time {
+        Time::new(year, month, day, hour, minute, offset).unwrap()
+    }
+
     #[test]
     fn test_empty() {
         let actual = parse_entries("".as_bytes()).unwrap();
@@ -205,7 +209,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time::new(2020, 1, 2, 12, 34, None),
+                start: mktime(2020, 1, 2, 12, 34, None),
                 stop: None,
             }],
             actual
@@ -217,7 +221,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time::new(2020, 1, 2, 12, 34, Some(-601)),
+                start: mktime(2020, 1, 2, 12, 34, Some(-601)),
                 stop: None,
             }],
             actual
@@ -229,7 +233,7 @@ mod tests {
         let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time::new(2020, 1, 2, 12, 34, Some(601)),
+                start: mktime(2020, 1, 2, 12, 34, Some(601)),
                 stop: None,
             }],
             actual
@@ -242,8 +246,8 @@ mod tests {
             parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time::new(2020, 1, 2, 12, 34, Some(-240)),
-                stop: Some(Time::new(2020, 1, 2, 13, 34, Some(-240))),
+                start: mktime(2020, 1, 2, 12, 34, Some(-240)),
+                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))),
             }],
             actual
         );
@@ -255,8 +259,8 @@ mod tests {
             parse_entries("2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
         assert_eq!(
             vec![Entry {
-                start: Time::new(2020, 1, 2, 12, 34, Some(600)),
-                stop: Some(Time::new(2020, 1, 2, 13, 34, Some(-240))),
+                start: mktime(2020, 1, 2, 12, 34, Some(600)),
+                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))),
             }],
             actual
         );
@@ -285,7 +289,7 @@ mod tests {
         assert_eq!(3, actual.len());
         assert_eq!(
             Entry {
-                start: Time::new(2020, 2, 2, 11, 11, None),
+                start: mktime(2020, 2, 2, 11, 11, None),
                 stop: None,
             },
             actual[2]

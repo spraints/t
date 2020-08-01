@@ -1,5 +1,6 @@
+use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use time::OffsetDateTime;
+use time::{self, OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Debug, PartialEq)]
 pub struct Entry {
@@ -26,25 +27,16 @@ impl Display for Entry {
 
 #[derive(Debug, PartialEq)]
 pub struct Time {
-    year: u16,
-    month: u8,
-    day: u8,
-    hour: u8,
-    minute: u8,
-    utc_offset: Option<i16>,
+    wrapped: OffsetDateTime,
+    implied_tz: bool,
 }
 
 impl Time {
-    fn now() -> Self {
-        let time = OffsetDateTime::now_local();
-        Self::new(
-            time.year() as u16,
-            time.month() as u8,
-            time.day() as u8,
-            time.hour() as u8,
-            time.minute() as u8,
-            Some(time.offset().as_minutes()),
-        )
+    pub fn now() -> Self {
+        Self {
+            wrapped: OffsetDateTime::now_local(),
+            implied_tz: false,
+        }
     }
 
     pub fn new(
@@ -54,37 +46,31 @@ impl Time {
         hour: u8,
         minute: u8,
         utc_offset: Option<i16>,
-    ) -> Self {
-        Time {
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            utc_offset,
+    ) -> Result<Self, Box<dyn Error>> {
+        let date = time::Date::try_from_ymd(year as i32, month, day)?;
+        let time = time::Time::try_from_hms(hour, minute, 0)?;
+        let dt = PrimitiveDateTime::new(date, time);
+        match utc_offset {
+            None => Ok(Time {
+                wrapped: dt.assume_offset(time::UtcOffset::current_local_offset()),
+                implied_tz: true,
+            }),
+            Some(tz) => Ok(Time {
+                wrapped: dt.assume_offset(time::UtcOffset::minutes(tz)),
+                implied_tz: false,
+            }),
         }
     }
 }
 
 impl Display for Time {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self.utc_offset {
-            None => write!(
-                f,
-                "{:04}-{:02}-{:02} {:02}:{:02}",
-                self.year, self.month, self.day, self.hour, self.minute
-            ),
-            Some(off) => {
-                let (sign, off) = if off < 0 { ("-", -off) } else { ("+", off) };
-                let hr_off = off / 60;
-                let min_off = off % 60;
-                write!(
-                    f,
-                    "{:04}-{:02}-{:02} {:02}:{:02} {}{:02}{:02}",
-                    self.year, self.month, self.day, self.hour, self.minute, sign, hr_off, min_off
-                )
-            }
-        }
+        let format = if self.implied_tz {
+            "%Y-%m-%d %H:%M"
+        } else {
+            "%Y-%m-%d %H:%M %z"
+        };
+        write!(f, "{}", self.wrapped.format(format))
     }
 }
 
@@ -94,20 +80,20 @@ mod tests {
 
     #[test]
     fn test_time_format_no_tz() {
-        let time = Time::new(2020, 6, 20, 1, 7, None);
+        let time = Time::new(2020, 6, 20, 1, 7, None).unwrap();
         assert_eq!("2020-06-20 01:07", format!("{}", time));
     }
 
     #[test]
     fn test_time_format_with_tz() {
-        let time = Time::new(2020, 6, 20, 1, 7, Some(-123));
+        let time = Time::new(2020, 6, 20, 1, 7, Some(-123)).unwrap();
         assert_eq!("2020-06-20 01:07 -0203", format!("{}", time));
     }
 
     #[test]
     fn test_entry_format_with_start() {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None),
+            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
             stop: None,
         };
         assert_eq!("2020-06-20 01:07\n", format!("{}", entry));
@@ -116,20 +102,17 @@ mod tests {
     #[test]
     fn test_entry_format_with_start_and_stop() {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None),
-            stop: Some(Time::new(2020, 6, 20, 1, 8, None)),
+            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 1, 8, None).unwrap()),
         };
         assert_eq!("2020-06-20 01:07,2020-06-20 01:08\n", format!("{}", entry));
     }
 
-    // I wish there was a better way to set this. :/
-    const TEST_TZ: i16 = -4 * 60;
-
     #[test]
     fn test_now() {
         let time = Time::now();
-        assert!(time.utc_offset.is_some());
-        assert_eq!(Some(TEST_TZ), time.utc_offset);
+        assert!(time.wrapped.timestamp() > 0);
+        assert_eq!(false, time.implied_tz);
     }
 
     // #[test]
