@@ -55,16 +55,31 @@ impl Time {
         let time = time::Time::try_from_hms(hour, minute, 0)?;
         let dt = PrimitiveDateTime::new(date, time);
         match utc_offset {
-            None => Ok(Time {
-                wrapped: dt.assume_offset(time::UtcOffset::current_local_offset()),
-                implied_tz: true,
-            }),
+            None => {
+                let off = unsafe { local_offset() };
+                Ok(Time {
+                    wrapped: dt.assume_offset(off),
+                    implied_tz: true,
+                })
+            }
             Some(tz) => Ok(Time {
-                wrapped: dt.assume_offset(time::UtcOffset::minutes(tz)),
+                wrapped: dt.assume_offset(explicit_offset(tz)),
                 implied_tz: false,
             }),
         }
     }
+}
+
+unsafe fn local_offset() -> time::UtcOffset {
+    static mut LOCAL_OFFSET: Option<time::UtcOffset> = None;
+    if LOCAL_OFFSET.is_none() {
+        LOCAL_OFFSET = Some(time::UtcOffset::current_local_offset());
+    }
+    LOCAL_OFFSET.unwrap()
+}
+
+fn explicit_offset(minutes: i16) -> time::UtcOffset {
+    time::UtcOffset::minutes(minutes)
 }
 
 impl Display for Time {
