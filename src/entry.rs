@@ -9,8 +9,12 @@ pub struct Entry {
 }
 
 impl Entry {
-    fn minutes(&self) -> u16 {
-        panic!("TODO: return number of minutes represented by this Entry");
+    pub fn minutes(&self) -> i64 {
+        let duration = match &self.stop {
+            None => OffsetDateTime::now_local() - self.start.wrapped,
+            Some(t) => t.wrapped - self.start.wrapped,
+        };
+        duration.whole_minutes()
     }
 }
 
