@@ -1,4 +1,5 @@
 use std::os::unix::process::CommandExt;
+use t::parser::parse_entries;
 
 fn main() {
     // Skip over the program name.
@@ -9,7 +10,7 @@ fn main() {
             "start" => (),
             "stop" => (),
             "edit" => cmd_edit(args),
-            "status" => (),
+            "status" => cmd_status(args),
             "today" => (),
             "week" => (),
             "all" => (),
@@ -40,4 +41,17 @@ fn cmd_edit(_: impl Iterator) -> ! {
     let path = std::env::var("T_DATA_FILE").unwrap();
     eprintln!("error: {}", std::process::Command::new(editor).arg(path).exec());
     std::process::exit(1)
+}
+
+fn cmd_status(_: impl Iterator) {
+    let data_file = std::env::var("T_DATA_FILE").unwrap();
+    let f = std::fs::File::open(data_file).unwrap();
+    let entries = parse_entries(f).unwrap();
+    match entries.last() {
+        None => println!("NOT working"),
+        Some(e) => match e.stop {
+            None => println!("WORKING"),
+            Some(_) => println!("NOT working"),
+        }
+    };
 }
