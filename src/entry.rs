@@ -16,6 +16,30 @@ impl Entry {
         };
         duration.whole_minutes()
     }
+
+    pub fn minutes_between(&self, from: &OffsetDateTime, to: &OffsetDateTime) -> i64 {
+        if &self.start.wrapped > to {
+            return 0;
+        }
+        let start: &OffsetDateTime = if &self.start.wrapped > from {
+            &self.start.wrapped
+        } else {
+            from
+        };
+        let stop: &OffsetDateTime = match &self.stop {
+            None => to,
+            Some(t) => {
+                if &t.wrapped < from {
+                    return 0;
+                } else if &t.wrapped < to {
+                    &t.wrapped
+                } else {
+                    to
+                }
+            }
+        };
+        (*stop - *start).whole_minutes()
+    }
 }
 
 impl Display for Entry {
@@ -96,6 +120,7 @@ impl Display for Time {
 #[cfg(test)]
 mod tests {
     use super::{Entry, Time};
+    use time::{date, time, PrimitiveDateTime};
 
     #[test]
     fn test_time_format_no_tz() {
@@ -134,18 +159,98 @@ mod tests {
         assert_eq!(false, time.implied_tz);
     }
 
-    // #[test]
-    // fn test_minutes() {
-    //     panic!("TODO: Entry{...}.minutes");
-    // }
+    #[test]
+    fn test_minutes() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 1, 8, None).unwrap()),
+        };
+        assert_eq!(1, entry.minutes());
+    }
 
-    // #[test]
-    // fn test_minutes_on_day() {
-    //     panic!("TODO: Entry{...}.minutes_on_day(2020, 1, 1)");
-    // }
+    #[test]
+    fn test_minutes_no_stop() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
+            stop: None,
+        };
+        assert!(entry.minutes() > 0);
+    }
 
-    // #[test]
-    // fn test_minutes_partial() {
-    //     panic!("TODO: Entry{...}.minutes");
-    // }
+    #[test]
+    fn test_minutes_between() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
+        assert_eq!(60, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_after_stop() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 19), time!(0:00)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
+        assert_eq!(0, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_before_start() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 22), time!(0:00)).assume_utc();
+        assert_eq!(0, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_entry_overlaps_start() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
+        assert_eq!(30, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_entry_overlaps_stop() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
+        assert_eq!(30, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_entry_overlaps_start_and_stop() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:10)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:50)).assume_utc();
+        assert_eq!(40, entry.minutes_between(&start, &stop));
+    }
+
+    #[test]
+    fn test_minutes_between_incomplete() {
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            stop: None,
+        };
+        let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
+        let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
+        assert_eq!(15 * 60, entry.minutes_between(&start, &stop));
+    }
 }

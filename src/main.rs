@@ -1,4 +1,5 @@
 use std::os::unix::process::CommandExt;
+use t::extents;
 use t::file::*;
 
 fn main() {
@@ -11,7 +12,7 @@ fn main() {
             "stop" => (),
             "edit" => cmd_edit(args),
             "status" => cmd_status(args),
-            "today" => (),
+            "today" => cmd_today(args),
             "week" => (),
             "all" => (),
             "punchcard" => (),
@@ -56,4 +57,15 @@ fn cmd_status(_: impl Iterator) {
             Some(_) => println!("NOT working"),
         },
     };
+}
+
+fn cmd_today(_: impl Iterator) {
+    let (start_today, now) = extents::today();
+    // TODO - only read the last 100 entries?
+    let entries = read_entries().expect("error parsing data file");
+    let minutes = entries.into_iter().fold(0, |sum, entry| {
+        sum + entry.minutes_between(&start_today, &now)
+    });
+    println!("You have worked for {} minutes today.", minutes);
+    println!("8h=480m");
 }
