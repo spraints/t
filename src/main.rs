@@ -48,9 +48,8 @@ fn cmd_edit(_: impl Iterator) -> ! {
 }
 
 fn cmd_status(_: impl Iterator) {
-    // TODO - only read the last entry!
-    let entries = read_entries().expect("error parsing data file");
-    match entries.last() {
+    let entry = read_last_entry().expect("error parsing data file");
+    match entry {
         None => println!("NOT working"),
         Some(e) => match e.stop {
             None => println!("WORKING"),
