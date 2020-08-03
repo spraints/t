@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-use time::{self, OffsetDateTime, PrimitiveDateTime};
+use time::{self, Date, OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Debug, PartialEq)]
 pub struct Entry {
@@ -9,6 +9,10 @@ pub struct Entry {
 }
 
 impl Entry {
+    pub fn start_date(&self) -> Date {
+        self.start.wrapped.date()
+    }
+
     pub fn minutes(&self) -> i64 {
         let duration = match &self.stop {
             None => OffsetDateTime::now_local() - self.start.wrapped,

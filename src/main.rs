@@ -13,7 +13,7 @@ fn main() {
             "edit" => cmd_edit(args),
             "status" => cmd_status(args),
             "today" => cmd_today(args),
-            "week" => (),
+            "week" => cmd_week(args),
             "all" => (),
             "punchcard" => (),
             "days" => (),
@@ -61,11 +61,26 @@ fn cmd_status(_: impl Iterator) {
 
 fn cmd_today(_: impl Iterator) {
     let (start_today, now) = extents::today();
-    // TODO - only read the last 100 entries?
+    // TODO - only read the last 100 entries? longest week so far has 46.
     let entries = read_entries().expect("error parsing data file");
     let minutes = entries.into_iter().fold(0, |sum, entry| {
         sum + entry.minutes_between(&start_today, &now)
     });
     println!("You have worked for {} minutes today.", minutes);
     println!("8h=480m");
+}
+
+fn cmd_week(_: impl Iterator) {
+    let (start_week, now) = extents::this_week();
+    // TODO - only read the last 100 entries? longest week so far has 46.
+    let entries = read_entries().expect("error parsing data file");
+    let minutes = entries.into_iter().fold(0, |sum, entry| {
+        sum + entry.minutes_between(&start_week, &now)
+    });
+    println!(
+        "You have worked for {} minutes since {}.",
+        minutes,
+        start_week.format("%Y-%m-%d")
+    );
+    println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
 }
