@@ -8,10 +8,18 @@ pub fn t_data_file() -> String {
 }
 
 pub fn read_entries() -> Result<Vec<Entry>, Box<dyn Error>> {
-    let f = File::open(t_data_file())?;
-    parse_entries(f)
+    match File::open(t_data_file()) {
+        Err(_) => Ok(vec![]),
+        Ok(f) => parse_entries(f),
+    }
 }
 
 pub fn read_last_entry() -> Result<Option<Entry>, Box<dyn Error>> {
+    // TODO - seek close to the end
     Ok(read_entries()?.into_iter().last())
+}
+
+pub fn read_last_entries(_: usize) -> Result<Vec<Entry>, Box<dyn Error>> {
+    // TODO
+    read_entries()
 }

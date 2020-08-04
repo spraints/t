@@ -48,7 +48,7 @@ fn cmd_edit(_: impl Iterator) -> ! {
 }
 
 fn cmd_status(_: impl Iterator) {
-    let entry = read_last_entry().expect("error parsing data file");
+    let entry = read_last_entry().expect(format!("error parsing {}", t_data_file()).as_str());
     match entry {
         None => println!("NOT working"),
         Some(e) => match e.stop {
@@ -60,8 +60,8 @@ fn cmd_status(_: impl Iterator) {
 
 fn cmd_today(_: impl Iterator) {
     let (start_today, now) = extents::today();
-    // TODO - only read the last 100 entries? longest week so far has 46.
-    let entries = read_entries().expect("error parsing data file");
+    // longest week so far is 46 entries, so 100 should be totally fine for a day.
+    let entries = read_last_entries(100).expect("error parsing data file");
     let minutes = entries.into_iter().fold(0, |sum, entry| {
         sum + entry.minutes_between(&start_today, &now)
     });
@@ -71,8 +71,8 @@ fn cmd_today(_: impl Iterator) {
 
 fn cmd_week(_: impl Iterator) {
     let (start_week, now) = extents::this_week();
-    // TODO - only read the last 100 entries? longest week so far has 46.
-    let entries = read_entries().expect("error parsing data file");
+    // longest week so far is 46 entries, so 100 should be totally fine.
+    let entries = read_last_entries(100).expect("error parsing data file");
     let minutes = entries.into_iter().fold(0, |sum, entry| {
         sum + entry.minutes_between(&start_week, &now)
     });
