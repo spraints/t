@@ -31,19 +31,18 @@ assert_out() {
 assert_out "NOT working" -- status
 
 #assert_out "Starting work" -- start
-echo 2020-01-01 08:00 > $T_DATA_FILE
+EDITOR='echo 2020-01-01 08:00 | tee' $COMMAND edit >/dev/null
 
 assert_out "WORKING" -- status
 
 # assert_out "You just worked for 0 minutes." -- stop
-echo 2020-01-01 08:00,2020-01-01 09:00 > $T_DATA_FILE
+EDITOR='echo 2020-01-01 08:00,2020-01-01 09:00 | tee' $COMMAND edit >/dev/null
 
 assert_out "NOT working" -- status
 
-(
 TODAY="$(date +%Y-%m-%d)"
-echo $TODAY 08:00,$TODAY 09:00
-echo $TODAY 09:45,$TODAY 10:55
-) > $T_DATA_FILE
+EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee" \
+  $COMMAND edit >/dev/null
+
 assert_out "You have worked for 130 minutes today." -- today
 assert_out "You have worked for 130 minutes since " -- week

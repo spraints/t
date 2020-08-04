@@ -42,7 +42,12 @@ fn cmd_edit(_: impl Iterator) -> ! {
     let path = t_data_file();
     eprintln!(
         "error: {}",
-        std::process::Command::new(editor).arg(path).exec()
+        std::process::Command::new("sh")
+            .arg("-c")
+            .arg(format!("{} \"$@\"", editor))
+            .arg(editor)
+            .arg(path)
+            .exec()
     );
     std::process::exit(1)
 }
