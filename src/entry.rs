@@ -13,6 +13,28 @@ impl Entry {
         self.start.wrapped.date()
     }
 
+    pub fn is_valid_after(&self, other: &Option<Entry>) -> Result<(), String> {
+        if let Some(stop) = &self.stop {
+            if self.start.wrapped > stop.wrapped {
+                return Err(format!("{} should be before {}", self.start, stop));
+            }
+        }
+        if let Some(other) = other {
+            match &other.stop {
+                None => return Err("previous entry is not complete!".to_string()),
+                Some(stop) => {
+                    if self.start.wrapped < stop.wrapped {
+                        return Err(format!(
+                            "{} starts before previous entry stops {}",
+                            self.start, stop
+                        ));
+                    }
+                }
+            };
+        }
+        Ok(())
+    }
+
     pub fn minutes(&self) -> i64 {
         let duration = match &self.stop {
             None => OffsetDateTime::now_local() - self.start.wrapped,

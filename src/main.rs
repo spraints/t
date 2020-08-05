@@ -22,6 +22,7 @@ fn main() {
             "pto" => (),
             "short" => (),
             "path" => (),
+            "validate" => cmd_validate(args),
             cmd => unknown_command(cmd),
         },
     }
@@ -87,4 +88,16 @@ fn cmd_week(_: impl Iterator) {
         start_week.format("%Y-%m-%d")
     );
     println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
+}
+
+fn cmd_validate(_: impl Iterator) {
+    let mut maybe_last_entry = None;
+    let mut n = 0;
+    for entry in read_entries().unwrap() {
+        n = n + 1;
+        if let Err(err) = entry.is_valid_after(&maybe_last_entry) {
+            println!("{}: {}", n, err);
+        }
+        maybe_last_entry = Some(entry);
+    }
 }
