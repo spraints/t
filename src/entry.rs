@@ -133,10 +133,14 @@ impl Time {
 
 unsafe fn local_offset() -> time::UtcOffset {
     static mut LOCAL_OFFSET: Option<time::UtcOffset> = None;
-    if LOCAL_OFFSET.is_none() {
-        LOCAL_OFFSET = Some(time::UtcOffset::current_local_offset());
+    match LOCAL_OFFSET {
+        None => {
+            let res = time::UtcOffset::current_local_offset();
+            LOCAL_OFFSET = Some(res);
+            res
+        }
+        Some(res) => res,
     }
-    LOCAL_OFFSET.unwrap()
 }
 
 fn explicit_offset(minutes: i16) -> time::UtcOffset {
@@ -159,34 +163,40 @@ mod tests {
     use super::{Entry, Time};
     use time::{date, time, PrimitiveDateTime};
 
+    type TestRes = Result<(), Box<dyn std::error::Error>>;
+
     #[test]
-    fn test_time_format_no_tz() {
-        let time = Time::new(2020, 6, 20, 1, 7, None).unwrap();
+    fn test_time_format_no_tz() -> TestRes {
+        let time = Time::new(2020, 6, 20, 1, 7, None)?;
         assert_eq!("2020-06-20 01:07", format!("{}", time));
+        Ok(())
     }
 
     #[test]
-    fn test_time_format_with_tz() {
-        let time = Time::new(2020, 6, 20, 1, 7, Some(-123)).unwrap();
+    fn test_time_format_with_tz() -> TestRes {
+        let time = Time::new(2020, 6, 20, 1, 7, Some(-123))?;
         assert_eq!("2020-06-20 01:07 -0203", format!("{}", time));
+        Ok(())
     }
 
     #[test]
-    fn test_entry_format_with_start() {
+    fn test_entry_format_with_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
+            start: Time::new(2020, 6, 20, 1, 7, None)?,
             stop: None,
         };
         assert_eq!("2020-06-20 01:07\n", format!("{}", entry));
+        Ok(())
     }
 
     #[test]
-    fn test_entry_format_with_start_and_stop() {
+    fn test_entry_format_with_start_and_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 1, 8, None).unwrap()),
+            start: Time::new(2020, 6, 20, 1, 7, None)?,
+            stop: Some(Time::new(2020, 6, 20, 1, 8, None)?),
         };
         assert_eq!("2020-06-20 01:07,2020-06-20 01:08\n", format!("{}", entry));
+        Ok(())
     }
 
     #[test]
@@ -197,97 +207,106 @@ mod tests {
     }
 
     #[test]
-    fn test_minutes() {
+    fn test_minutes() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 1, 8, None).unwrap()),
+            start: Time::new(2020, 6, 20, 1, 7, None)?,
+            stop: Some(Time::new(2020, 6, 20, 1, 8, None)?),
         };
         assert_eq!(1, entry.minutes());
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_no_stop() {
+    fn test_minutes_no_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None).unwrap(),
+            start: Time::new(2020, 6, 20, 1, 7, None)?,
             stop: None,
         };
         assert!(entry.minutes() > 0);
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between() {
+    fn test_minutes_between() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         assert_eq!(60, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_after_stop() {
+    fn test_minutes_between_after_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 19), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         assert_eq!(0, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_before_start() {
+    fn test_minutes_between_before_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 22), time!(0:00)).assume_utc();
         assert_eq!(0, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_entry_overlaps_start() {
+    fn test_minutes_between_entry_overlaps_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
         assert_eq!(30, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_entry_overlaps_stop() {
+    fn test_minutes_between_entry_overlaps_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         assert_eq!(30, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_entry_overlaps_start_and_stop() {
+    fn test_minutes_between_entry_overlaps_start_and_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0)).unwrap()),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
+            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0))?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:10)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:50)).assume_utc();
         assert_eq!(40, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 
     #[test]
-    fn test_minutes_between_incomplete() {
+    fn test_minutes_between_incomplete() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0)).unwrap(),
+            start: Time::new(2020, 6, 20, 9, 0, Some(0))?,
             stop: None,
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         assert_eq!(15 * 60, entry.minutes_between(&start, &stop));
+        Ok(())
     }
 }

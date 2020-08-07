@@ -201,102 +201,117 @@ impl<R: Read> Parser<R> {
 mod tests {
     use super::{parse_entries, write_entries, Entry, Time};
 
-    fn mktime(year: u16, month: u8, day: u8, hour: u8, minute: u8, offset: Option<i16>) -> Time {
-        Time::new(year, month, day, hour, minute, offset).unwrap()
+    type TestRes = Result<(), Box<dyn std::error::Error>>;
+
+    fn mktime(
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        offset: Option<i16>,
+    ) -> Result<Time, Box<dyn std::error::Error>> {
+        Time::new(year, month, day, hour, minute, offset)
     }
 
     #[test]
-    fn test_empty() {
-        let actual = parse_entries("".as_bytes()).unwrap();
+    fn test_empty() -> TestRes {
+        let actual = parse_entries("".as_bytes())?;
         assert_eq!(Vec::<Entry>::new(), actual);
+        Ok(())
     }
 
     #[test]
-    fn test_start_no_tz() {
-        let actual = parse_entries("2020-01-02 12:34\n".as_bytes()).unwrap();
+    fn test_start_no_tz() -> TestRes {
+        let actual = parse_entries("2020-01-02 12:34\n".as_bytes())?;
         assert_eq!(
             vec![Entry {
-                start: mktime(2020, 1, 2, 12, 34, None),
+                start: mktime(2020, 1, 2, 12, 34, None)?,
                 stop: None,
             }],
             actual
         );
+        Ok(())
     }
 
     #[test]
-    fn test_start_with_neg_tz() {
-        let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes()).unwrap();
+    fn test_start_with_neg_tz() -> TestRes {
+        let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes())?;
         assert_eq!(
             vec![Entry {
-                start: mktime(2020, 1, 2, 12, 34, Some(-601)),
+                start: mktime(2020, 1, 2, 12, 34, Some(-601))?,
                 stop: None,
             }],
             actual
         );
+        Ok(())
     }
 
     #[test]
-    fn test_start_with_pos_tz_and_comma() {
-        let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes()).unwrap();
+    fn test_start_with_pos_tz_and_comma() -> TestRes {
+        let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes())?;
         assert_eq!(
             vec![Entry {
-                start: mktime(2020, 1, 2, 12, 34, Some(601)),
+                start: mktime(2020, 1, 2, 12, 34, Some(601))?,
                 stop: None,
             }],
             actual
         );
+        Ok(())
     }
 
     #[test]
-    fn test_single_entry() {
+    fn test_single_entry() -> TestRes {
+        let actual = parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes())?;
+        assert_eq!(
+            vec![Entry {
+                start: mktime(2020, 1, 2, 12, 34, Some(-240))?,
+                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))?),
+            }],
+            actual
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_single_entry_mixed_tz_and_space_between_times() -> TestRes {
         let actual =
-            parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
+            parse_entries("2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes())?;
         assert_eq!(
             vec![Entry {
-                start: mktime(2020, 1, 2, 12, 34, Some(-240)),
-                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))),
+                start: mktime(2020, 1, 2, 12, 34, Some(600))?,
+                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))?),
             }],
             actual
         );
+        Ok(())
     }
 
     #[test]
-    fn test_single_entry_mixed_tz_and_space_between_times() {
-        let actual =
-            parse_entries("2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes()).unwrap();
-        assert_eq!(
-            vec![Entry {
-                start: mktime(2020, 1, 2, 12, 34, Some(600)),
-                stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))),
-            }],
-            actual
-        );
-    }
-
-    #[test]
-    fn test_several_entries() {
+    fn test_several_entries() -> TestRes {
         let original = "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
                         2020-01-03 09:00,2020-01-03 10:30\n\
                         2020-02-02 11:11,2020-02-02 12:12 -0400\n";
-        let actual = parse_entries(original.as_bytes()).unwrap();
+        let actual = parse_entries(original.as_bytes())?;
         assert_eq!(3, actual.len());
 
         // Verify that it round-trips.
         let mut output = Vec::new();
-        write_entries(&mut output, &actual).unwrap();
-        assert_eq!(std::str::from_utf8(&output).unwrap(), original);
+        write_entries(&mut output, &actual)?;
+        assert_eq!(std::str::from_utf8(&output)?, original);
+        Ok(())
     }
 
     #[test]
-    fn test_several_entries_last_is_partial() {
+    fn test_several_entries_last_is_partial() -> TestRes {
         let original = "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
                         2020-01-03 09:00,2020-01-03 10:30\n\
                         2020-02-02 11:11\n";
-        let actual = parse_entries(original.as_bytes()).unwrap();
+        let actual = parse_entries(original.as_bytes())?;
         assert_eq!(3, actual.len());
         assert_eq!(
             Entry {
-                start: mktime(2020, 2, 2, 11, 11, None),
+                start: mktime(2020, 2, 2, 11, 11, None)?,
                 stop: None,
             },
             actual[2]
@@ -304,8 +319,9 @@ mod tests {
 
         // Verify that it round-trips.
         let mut output = Vec::new();
-        write_entries(&mut output, &actual).unwrap();
-        assert_eq!(std::str::from_utf8(&output).unwrap(), original);
+        write_entries(&mut output, &actual)?;
+        assert_eq!(std::str::from_utf8(&output)?, original);
+        Ok(())
     }
 
     // TODO - tests for errors?

@@ -11,35 +11,27 @@ pub fn t_data_file() -> String {
 }
 
 pub fn start_new_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    let f = OpenOptions::new()
+    let mut f = OpenOptions::new()
         .read(true)
         .write(true)
-        .open(t_data_file());
-    let mut f = match f {
-        Ok(mut f) => {
-            seek_last_entries(&mut f, 1)?;
-            let mut pos = get_pos(&mut f)?;
-            loop {
-                let (entry, returned) = parse_entry(f)?;
-                f = returned;
-                match entry {
-                    None => break,
-                    Some(entry) => {
-                        if !entry.is_finished() {
-                            return Ok(Some(entry.minutes()));
-                        }
-                    }
-                };
-                pos = get_pos(&mut f)?;
+        .create(true)
+        .open(t_data_file())?;
+    seek_last_entries(&mut f, 1)?;
+    let mut pos = get_pos(&mut f)?;
+    loop {
+        let (entry, returned) = parse_entry(f)?;
+        f = returned;
+        match entry {
+            None => break,
+            Some(entry) => {
+                if !entry.is_finished() {
+                    return Ok(Some(entry.minutes()));
+                }
             }
-            f.seek(SeekFrom::Start(pos))?;
-            f
-        }
-        Err(e) => match e.kind() {
-            ErrorKind::NotFound => File::create(t_data_file())?,
-            _ => return Err(Box::new(e)),
-        },
-    };
+        };
+        pos = get_pos(&mut f)?;
+    }
+    f.seek(SeekFrom::Start(pos))?;
     write!(f, "{}", Entry::start())?;
     Ok(None)
 }
