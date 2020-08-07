@@ -8,7 +8,7 @@ fn main() {
     match args.next() {
         None => usage(),
         Some(cmd) => match cmd.as_str() {
-            "start" => (),
+            "start" => cmd_start(args),
             "stop" => (),
             "edit" => cmd_edit(args),
             "status" => cmd_status(args),
@@ -36,6 +36,13 @@ fn unknown_command(cmd: &str) -> ! {
 fn usage() -> ! {
     eprintln!("A command (start, stop, edit) or query (status, today, week, all, punchcard, days, csv, svg, pto, short, path) is required.");
     std::process::exit(1)
+}
+
+fn cmd_start(_: impl Iterator) {
+    match start_new_entry().unwrap() {
+        None => println!("Starting work."),
+        Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
+    };
 }
 
 fn cmd_edit(_: impl Iterator) -> ! {

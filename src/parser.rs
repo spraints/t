@@ -16,6 +16,7 @@ impl std::fmt::Display for ParseError {
 impl Error for ParseError {}
 
 pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
+    let r = BufReader::new(r);
     let mut parser = Parser::new(r);
     let mut res = vec![];
     loop {
@@ -27,6 +28,12 @@ pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
     Ok(res)
 }
 
+pub fn parse_entry<R: Read>(r: R) -> Result<(Option<Entry>, R), Box<dyn Error>> {
+    let mut parser = Parser::new(r);
+    let entry = parser.parse_entry()?;
+    Ok((entry, parser.reader))
+}
+
 pub fn write_entries(w: &mut impl Write, entries: &Vec<Entry>) -> Result<(), Box<dyn Error>> {
     for entry in entries {
         write!(w, "{}", entry)?;
@@ -35,7 +42,7 @@ pub fn write_entries(w: &mut impl Write, entries: &Vec<Entry>) -> Result<(), Box
 }
 
 struct Parser<R> {
-    reader: BufReader<R>,
+    reader: R,
     line: usize,
     col: usize,
 }
@@ -43,7 +50,7 @@ struct Parser<R> {
 impl<R: Read> Parser<R> {
     fn new(r: R) -> Parser<R> {
         Parser {
-            reader: BufReader::new(r),
+            reader: r,
             line: 1,
             col: 0,
         }

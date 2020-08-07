@@ -30,8 +30,8 @@ assert_out() {
 
 assert_out "NOT working" -- status
 
-#assert_out "Starting work" -- start
-EDITOR='echo 2020-01-01 08:00 | tee' $COMMAND edit >/dev/null
+assert_out "Starting work" -- start
+assert_out "You already started working," -- start
 
 assert_out "WORKING" -- status
 

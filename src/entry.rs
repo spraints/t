@@ -9,8 +9,19 @@ pub struct Entry {
 }
 
 impl Entry {
+    pub fn start() -> Self {
+        Entry {
+            start: Time::now(),
+            stop: None,
+        }
+    }
+
     pub fn start_date(&self) -> Date {
         self.start.wrapped.date()
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.stop.is_some()
     }
 
     pub fn is_valid_after(&self, other: &Option<Entry>) -> Result<(), String> {
