@@ -58,7 +58,7 @@ fn t_open() -> io::Result<TFile> {
     }
 }
 
-pub struct TFile {
+struct TFile {
     f: Option<File>,
 }
 
