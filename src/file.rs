@@ -9,8 +9,12 @@ const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
 
 #[cfg(test)]
 mod tests {
+    use crate::entry::mock_time::*;
     use std::error::Error;
+    use std::fs::File;
+    use std::io::Read;
     use std::path::PathBuf;
+    use time::{date, offset, time};
 
     struct Fixture {
         dir: tempfile::TempDir,
@@ -35,21 +39,23 @@ mod tests {
         fn t_data_file(&self) -> PathBuf {
             self.dir.path().join("test-t.csv")
         }
+
+        fn read(&self) -> std::io::Result<String> {
+            let mut f = File::open(self.t_data_file())?;
+            let mut res = String::new();
+            f.read_to_string(&mut res)?;
+            Ok(res)
+        }
     }
 
     type TestRes = Result<(), Box<dyn Error>>;
 
     #[test]
     fn test_start_in_new_file() -> TestRes {
+        set_mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(None)?;
         assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
-        let entries = super::_read_entries(fixt.t_data_file())?;
-        assert_eq!(1, entries.len(), "should have one entry: {:?}", entries);
-        assert!(
-            !entries[0].is_finished(),
-            "should not be finished: {}",
-            entries[0]
-        );
+        assert_eq!("2020-07-15 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
@@ -92,6 +98,21 @@ mod tests {
             !entries[3].is_finished(),
             "[3] (new!) should not be finished: {}",
             entries[3]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_start_twice() -> TestRes {
+        let fixt = Fixture::new(None)?;
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(Some(0), super::_start_new_entry(fixt.t_data_file())?);
+        let entries = super::_read_entries(fixt.t_data_file())?;
+        assert_eq!(1, entries.len(), "should have one entry: {:?}", entries);
+        assert!(
+            !entries[0].is_finished(),
+            "should not be finished: {}",
+            entries[0]
         );
         Ok(())
     }

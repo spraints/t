@@ -8,6 +8,67 @@ pub struct Entry {
     pub stop: Option<Time>,
 }
 
+#[cfg(not(test))]
+fn now() -> OffsetDateTime {
+    OffsetDateTime::now_local()
+}
+
+#[cfg(not(test))]
+unsafe fn local_offset() -> time::UtcOffset {
+    static mut LOCAL_OFFSET: Option<time::UtcOffset> = None;
+    match LOCAL_OFFSET {
+        None => {
+            let res = time::UtcOffset::current_local_offset();
+            LOCAL_OFFSET = Some(res);
+            res
+        }
+        Some(res) => res,
+    }
+}
+
+// ok for test and prod.
+fn explicit_offset(minutes: i16) -> time::UtcOffset {
+    time::UtcOffset::minutes(minutes)
+}
+
+#[cfg(test)]
+pub mod mock_time {
+    // Adapted from https://blog.iany.me/2019/03/how-to-mock-time-in-rust-tests-and-cargo-gotchas-we-met/
+
+    use std::cell::RefCell;
+    use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+
+    thread_local! {
+        static MOCK_TIME: RefCell<Option<OffsetDateTime>> = RefCell::new(None);
+    }
+
+    pub fn now() -> OffsetDateTime {
+        MOCK_TIME.with(|cell| {
+            cell.borrow()
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(OffsetDateTime::now_local)
+        })
+    }
+
+    pub fn local_offset() -> UtcOffset {
+        now().offset()
+    }
+
+    pub fn set_mock_time(date: Date, time: Time, offset: UtcOffset) {
+        MOCK_TIME.with(|cell| {
+            *cell.borrow_mut() = Some(PrimitiveDateTime::new(date, time).assume_offset(offset))
+        });
+    }
+
+    pub fn clear_mock_time() {
+        MOCK_TIME.with(|cell| *cell.borrow_mut() = None);
+    }
+}
+
+#[cfg(test)]
+use mock_time::{local_offset, now};
+
 impl Entry {
     pub fn start() -> Self {
         Entry {
@@ -48,7 +109,7 @@ impl Entry {
 
     pub fn minutes(&self) -> i64 {
         let duration = match &self.stop {
-            None => OffsetDateTime::now_local() - self.start.wrapped,
+            None => now() - self.start.wrapped,
             Some(t) => t.wrapped - self.start.wrapped,
         };
         duration.whole_minutes()
@@ -99,7 +160,7 @@ pub struct Time {
 impl Time {
     pub fn now() -> Self {
         Self {
-            wrapped: OffsetDateTime::now_local(),
+            wrapped: now(),
             implied_tz: false,
         }
     }
@@ -114,37 +175,26 @@ impl Time {
     ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
+        let offset = utc_offset.and_then(|tz| Some(explicit_offset(tz)));
+        Ok(Self::from_dto(date, time, offset))
+    }
+
+    pub fn from_dto(date: time::Date, time: time::Time, offset: Option<time::UtcOffset>) -> Self {
         let dt = PrimitiveDateTime::new(date, time);
-        match utc_offset {
+        match offset {
             None => {
                 let off = unsafe { local_offset() };
-                Ok(Time {
+                Self {
                     wrapped: dt.assume_offset(off),
                     implied_tz: true,
-                })
+                }
             }
-            Some(tz) => Ok(Time {
-                wrapped: dt.assume_offset(explicit_offset(tz)),
+            Some(tz) => Self {
+                wrapped: dt.assume_offset(tz),
                 implied_tz: false,
-            }),
+            },
         }
     }
-}
-
-unsafe fn local_offset() -> time::UtcOffset {
-    static mut LOCAL_OFFSET: Option<time::UtcOffset> = None;
-    match LOCAL_OFFSET {
-        None => {
-            let res = time::UtcOffset::current_local_offset();
-            LOCAL_OFFSET = Some(res);
-            res
-        }
-        Some(res) => res,
-    }
-}
-
-fn explicit_offset(minutes: i16) -> time::UtcOffset {
-    time::UtcOffset::minutes(minutes)
 }
 
 impl Display for Time {
@@ -160,8 +210,8 @@ impl Display for Time {
 
 #[cfg(test)]
 mod tests {
-    use super::{Entry, Time};
-    use time::{date, time, PrimitiveDateTime};
+    use super::{mock_time::*, Entry, Time};
+    use time::{date, offset, time, PrimitiveDateTime};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -201,9 +251,9 @@ mod tests {
 
     #[test]
     fn test_now() {
+        set_mock_time(date!(2020 - 07 - 15), time!(11:23), offset!(+11:00));
         let time = Time::now();
-        assert!(time.wrapped.timestamp() > 0);
-        assert_eq!(false, time.implied_tz);
+        assert_eq!("2020-07-15 11:23 +1100", format!("{}", time));
     }
 
     #[test]
@@ -218,11 +268,23 @@ mod tests {
 
     #[test]
     fn test_minutes_no_stop() -> TestRes {
+        set_mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(-02:00));
+        let entry = Entry {
+            start: Time::new(2020, 6, 20, 1, 7, Some(120))?,
+            stop: None,
+        };
+        assert_eq!(4 * 60 + 48, entry.minutes());
+        Ok(())
+    }
+
+    #[test]
+    fn test_minutes_no_stop_no_tz() -> TestRes {
+        set_mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
         let entry = Entry {
             start: Time::new(2020, 6, 20, 1, 7, None)?,
             stop: None,
         };
-        assert!(entry.minutes() > 0);
+        assert_eq!(48, entry.minutes());
         Ok(())
     }
 
