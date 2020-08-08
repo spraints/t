@@ -200,6 +200,50 @@ mod tests {
         assert_eq!(1000, fixt.open()?.read_last_entries(10000)?.len());
         Ok(())
     }
+
+    #[test]
+    fn test_read_entries_no_file()->TestRes {
+        let fixt = Fixture::new(None)?;
+        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_entries_empty_file()->TestRes {
+        let fixt = Fixture::new(Some("empty.csv"))?;
+        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_entries_blank_file()->TestRes {
+        let fixt = Fixture::new(Some("blank-lines.csv"))?;
+        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_entries_three()->TestRes {
+        let fixt = Fixture::new(Some("three-entries.csv"))?;
+        assert_eq!(3, fixt.open()?.read_entries()?.len());
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_entries_thousand()->TestRes {
+        let fixt = Fixture::new(Some("thousand-entries.csv"))?;
+        assert_eq!(1000, fixt.open()?.read_entries()?.len());
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_entries_started()->TestRes {
+        let fixt = Fixture::new(Some("started-with-comma.csv"))?;
+        let entries = fixt.open()?.read_entries()?;
+        assert_eq!(1, entries.len());
+        assert!(!entries[0].is_finished());
+        Ok(())
+    }
 }
 
 pub fn t_data_file() -> Result<String, std::env::VarError> {
