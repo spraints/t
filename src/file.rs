@@ -9,7 +9,7 @@ const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
 
 #[cfg(test)]
 mod tests {
-    use crate::entry::mock_time::*;
+    use crate::entry::{mock_time::*, Entry};
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;
@@ -40,12 +40,20 @@ mod tests {
             self.dir.path().join("test-t.csv")
         }
 
+        fn open(&self) -> std::io::Result<super::TFile> {
+            super::t_open(self.t_data_file())
+        }
+
         fn read(&self) -> std::io::Result<String> {
             let mut f = File::open(self.t_data_file())?;
             let mut res = String::new();
             f.read_to_string(&mut res)?;
             Ok(res)
         }
+    }
+
+    fn empty_entries() -> Vec<Entry> {
+        vec![]
     }
 
     type TestRes = Result<(), Box<dyn Error>>;
@@ -138,24 +146,58 @@ mod tests {
     #[test]
     fn test_read_last_entry_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, super::_read_last_entry(fixt.t_data_file())?);
+        assert_eq!(None, fixt.open()?.read_last_entry()?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(None, super::_read_last_entry(fixt.t_data_file())?);
+        assert_eq!(None, fixt.open()?.read_last_entry()?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        match super::_read_last_entry(fixt.t_data_file())? {
+        match fixt.open()?.read_last_entry()? {
             None => panic!("expected an entry"),
-            Some(e) => assert_eq!("2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n", format!("{}", e)),
+            Some(e) => assert_eq!(
+                "2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n",
+                format!("{}", e)
+            ),
         };
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_last_entries_no_file() -> TestRes {
+        let fixt = Fixture::new(None)?;
+        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_last_entries_empty_file() -> TestRes {
+        let fixt = Fixture::new(Some("empty.csv"))?;
+        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_last_entries() -> TestRes {
+        let fixt = Fixture::new(Some("thousand-entries.csv"))?;
+        assert!(
+            fixt.open()?.read_last_entries(10)?.len() >= 10,
+            "expect at least 10 entries to be returned"
+        );
+        assert!(
+            fixt.open()?.read_last_entries(100)?.len() >= 100,
+            "expect at least 100 entries to be returned"
+        );
+        // the file only has 1000 entries, so we can't get more than that.
+        assert_eq!(1000, fixt.open()?.read_last_entries(1000)?.len());
+        assert_eq!(1000, fixt.open()?.read_last_entries(10000)?.len());
         Ok(())
     }
 }
@@ -195,19 +237,11 @@ fn _start_new_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Box<d
 }
 
 pub fn read_entries() -> Result<Vec<Entry>, Box<dyn Error>> {
-    _read_entries(t_data_file()?)
-}
-
-fn _read_entries<P: AsRef<Path>>(t_data_file: P) -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file)?.read_entries()
+    t_open(t_data_file()?)?.read_entries()
 }
 
 pub fn read_last_entry() -> Result<Option<Entry>, Box<dyn Error>> {
-    _read_last_entry(t_data_file()?)
-}
-
-fn _read_last_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<Entry>, Box<dyn Error>> {
-    t_open(t_data_file)?.read_last_entry()
+    t_open(t_data_file()?)?.read_last_entry()
 }
 
 pub fn read_last_entries(n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
