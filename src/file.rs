@@ -61,59 +61,77 @@ mod tests {
 
     #[test]
     fn test_start_in_empty_file() -> TestRes {
+        set_mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("empty.csv"))?;
         assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
-        let entries = super::_read_entries(fixt.t_data_file())?;
-        assert_eq!(1, entries.len(), "should have one entry: {:?}", entries);
-        assert!(
-            !entries[0].is_finished(),
-            "should not be finished: {}",
-            entries[0]
-        );
+        assert_eq!("2020-07-15 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_start_in_file_with_entries() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("three-entries.csv"))?;
         assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
-        let entries = super::_read_entries(fixt.t_data_file())?;
-        assert_eq!(4, entries.len(), "should have four entries: {:?}", entries);
-        assert!(
-            entries[0].is_finished(),
-            "[0] should be finished: {}",
-            entries[0]
-        );
-        assert!(
-            entries[1].is_finished(),
-            "[1] should be finished: {}",
-            entries[1]
-        );
-        assert!(
-            entries[2].is_finished(),
-            "[2] should be finished: {}",
-            entries[2]
-        );
-        assert!(
-            !entries[3].is_finished(),
-            "[3] (new!) should not be finished: {}",
-            entries[3]
+        assert_eq!(
+            "2020-08-06 15:38 -0400,2020-08-06 18:40 -0400\n\
+                    2020-08-07 11:03 -0400,2020-08-07 13:07 -0400\n\
+                    2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n\
+                    2020-08-08 10:23 -0400\n",
+            fixt.read()?
         );
         Ok(())
     }
 
     #[test]
     fn test_start_twice() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(None)?;
         assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
         assert_eq!(Some(0), super::_start_new_entry(fixt.t_data_file())?);
-        let entries = super::_read_entries(fixt.t_data_file())?;
-        assert_eq!(1, entries.len(), "should have one entry: {:?}", entries);
-        assert!(
-            !entries[0].is_finished(),
-            "should not be finished: {}",
-            entries[0]
+        set_mock_time(date!(2020 - 08 - 08), time!(10:34), offset!(-04:00));
+        assert_eq!(Some(11), super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!("2020-08-08 10:23 -0400\n", fixt.read()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_start_with_blank_lines() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let fixt = Fixture::new(Some("blank-lines.csv"))?;
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!("2020-08-08 10:23 -0400\n", fixt.read()?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_start_with_entry_and_trailing_whitespace() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let fixt = Fixture::new(Some("entry-with-trailing-blank-lines.csv"))?;
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(
+            "2020-08-06 14:00 -0400,2020-08-06 17:55 -0400\n\
+                    \n\
+                    2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n\
+                    2020-08-08 10:23 -0400\n",
+            fixt.read()?
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_start_when_entry_has_comma() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let fixt = Fixture::new(Some("started-with-comma.csv"))?;
+        assert_eq!(Some(1223), super::_start_new_entry(fixt.t_data_file())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_start_when_entry_has_no_comma() -> TestRes {
+        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let fixt = Fixture::new(Some("started-no-comma.csv"))?;
+        assert_eq!(Some(1223), super::_start_new_entry(fixt.t_data_file())?);
         Ok(())
     }
 }
