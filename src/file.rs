@@ -134,14 +134,38 @@ mod tests {
         assert_eq!(Some(1223), super::_start_new_entry(fixt.t_data_file())?);
         Ok(())
     }
+
+    #[test]
+    fn test_read_last_entry_no_file() -> TestRes {
+        let fixt = Fixture::new(None)?;
+        assert_eq!(None, super::_read_last_entry(fixt.t_data_file())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_last_entry_empty_file() -> TestRes {
+        let fixt = Fixture::new(Some("empty.csv"))?;
+        assert_eq!(None, super::_read_last_entry(fixt.t_data_file())?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_last_entry() -> TestRes {
+        let fixt = Fixture::new(Some("three-entries.csv"))?;
+        match super::_read_last_entry(fixt.t_data_file())? {
+            None => panic!("expected an entry"),
+            Some(e) => assert_eq!("2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n", format!("{}", e)),
+        };
+        Ok(())
+    }
 }
 
-pub fn t_data_file() -> String {
-    std::env::var("T_DATA_FILE").unwrap()
+pub fn t_data_file() -> Result<String, std::env::VarError> {
+    std::env::var("T_DATA_FILE")
 }
 
 pub fn start_new_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    _start_new_entry(t_data_file())
+    _start_new_entry(t_data_file()?)
 }
 
 fn _start_new_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Box<dyn Error>> {
@@ -171,7 +195,7 @@ fn _start_new_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Box<d
 }
 
 pub fn read_entries() -> Result<Vec<Entry>, Box<dyn Error>> {
-    _read_entries(t_data_file())
+    _read_entries(t_data_file()?)
 }
 
 fn _read_entries<P: AsRef<Path>>(t_data_file: P) -> Result<Vec<Entry>, Box<dyn Error>> {
@@ -179,11 +203,15 @@ fn _read_entries<P: AsRef<Path>>(t_data_file: P) -> Result<Vec<Entry>, Box<dyn E
 }
 
 pub fn read_last_entry() -> Result<Option<Entry>, Box<dyn Error>> {
-    t_open(t_data_file())?.read_last_entry()
+    _read_last_entry(t_data_file()?)
+}
+
+fn _read_last_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<Entry>, Box<dyn Error>> {
+    t_open(t_data_file)?.read_last_entry()
 }
 
 pub fn read_last_entries(n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file())?.read_last_entries(n)
+    t_open(t_data_file()?)?.read_last_entries(n)
 }
 
 fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
