@@ -9,20 +9,19 @@ pub struct Entry {
 }
 
 #[cfg(not(test))]
-fn now() -> OffsetDateTime {
-    OffsetDateTime::now_local()
-}
+pub mod real_time {
+    use time::{OffsetDateTime, UtcOffset};
 
-#[cfg(not(test))]
-unsafe fn local_offset() -> time::UtcOffset {
-    static mut LOCAL_OFFSET: Option<time::UtcOffset> = None;
-    match LOCAL_OFFSET {
-        None => {
-            let res = time::UtcOffset::current_local_offset();
-            LOCAL_OFFSET = Some(res);
-            res
-        }
-        Some(res) => res,
+    // TODO - don't use this crate, it pulls in a bunch of dependencies.
+    use cached::proc_macro::cached;
+
+    pub fn now() -> OffsetDateTime {
+        OffsetDateTime::now_local()
+    }
+
+    #[cached]
+    pub fn local_offset() -> UtcOffset {
+        UtcOffset::current_local_offset()
     }
 }
 
@@ -68,6 +67,8 @@ pub mod mock_time {
 
 #[cfg(test)]
 use mock_time::{local_offset, now};
+#[cfg(not(test))]
+use real_time::{local_offset, now};
 
 impl Entry {
     pub fn start() -> Self {
@@ -193,7 +194,7 @@ impl Time {
         let dt = PrimitiveDateTime::new(date, time);
         match offset {
             None => {
-                let off = unsafe { local_offset() };
+                let off = local_offset();
                 Self {
                     wrapped: dt.assume_offset(off),
                     implied_tz: true,
