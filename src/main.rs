@@ -70,7 +70,8 @@ fn cmd_edit(_: impl Iterator) -> ! {
 }
 
 fn cmd_status(_: impl Iterator) {
-    let entry = read_last_entry().expect(format!("error parsing {}", t_data_file().unwrap()).as_str());
+    let entry =
+        read_last_entry().expect(format!("error parsing {}", t_data_file().unwrap()).as_str());
     match entry {
         None => println!("NOT working"),
         Some(e) => match e.stop {

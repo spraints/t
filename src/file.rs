@@ -177,7 +177,10 @@ mod tests {
         set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
         assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
-        assert_eq!("2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n", fixt.read()?);
+        assert_eq!(
+            "2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n",
+            fixt.read()?
+        );
         Ok(())
     }
 
@@ -186,7 +189,10 @@ mod tests {
         set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-no-comma.csv"))?;
         assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
-        assert_eq!("2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n", fixt.read()?);
+        assert_eq!(
+            "2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n",
+            fixt.read()?
+        );
         Ok(())
     }
 
@@ -266,42 +272,42 @@ mod tests {
     }
 
     #[test]
-    fn test_read_entries_no_file()->TestRes {
+    fn test_read_entries_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
         assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
         Ok(())
     }
 
     #[test]
-    fn test_read_entries_empty_file()->TestRes {
+    fn test_read_entries_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
         assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
         Ok(())
     }
 
     #[test]
-    fn test_read_entries_blank_file()->TestRes {
+    fn test_read_entries_blank_file() -> TestRes {
         let fixt = Fixture::new(Some("blank-lines.csv"))?;
         assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
         Ok(())
     }
 
     #[test]
-    fn test_read_entries_three()->TestRes {
+    fn test_read_entries_three() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
         assert_eq!(3, fixt.open()?.read_entries()?.len());
         Ok(())
     }
 
     #[test]
-    fn test_read_entries_thousand()->TestRes {
+    fn test_read_entries_thousand() -> TestRes {
         let fixt = Fixture::new(Some("thousand-entries.csv"))?;
         assert_eq!(1000, fixt.open()?.read_entries()?.len());
         Ok(())
     }
 
     #[test]
-    fn test_read_entries_started()->TestRes {
+    fn test_read_entries_started() -> TestRes {
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
         let entries = fixt.open()?.read_entries()?;
         assert_eq!(1, entries.len());
@@ -340,20 +346,24 @@ fn _stop_current_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Bo
     let (mut f, entry, pos, _) = read_for_update(t_data_file)?;
     match entry {
         None => Ok(None),
-        Some(entry) => if entry.is_finished() {
-            Ok(None)
-        } else {
-            f.seek(SeekFrom::Start(pos))?;
-            let entry = entry.finish();
-            write!(f, "{}", entry)?;
-            Ok(Some(entry.minutes()))
+        Some(entry) => {
+            if entry.is_finished() {
+                Ok(None)
+            } else {
+                f.seek(SeekFrom::Start(pos))?;
+                let entry = entry.finish();
+                write!(f, "{}", entry)?;
+                Ok(Some(entry.minutes()))
+            }
         }
     }
 }
 
 // Get the last entry from the file, along with its start and stop
 // positions.
-fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<(File, Option<Entry>, u64, u64), Box<dyn Error>> {
+fn read_for_update<P: AsRef<Path>>(
+    t_data_file: P,
+) -> Result<(File, Option<Entry>, u64, u64), Box<dyn Error>> {
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)
