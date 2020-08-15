@@ -71,9 +71,19 @@ use mock_time::{local_offset, now};
 
 impl Entry {
     pub fn start() -> Self {
-        Entry {
+        Self {
             start: Time::now(),
             stop: None,
+        }
+    }
+
+    pub fn finish(self) -> Self {
+        if self.is_finished() {
+            panic!("finish called for a finished entry! {}", self);
+        }
+        Self {
+            start: self.start,
+            stop: Some(Time::now()),
         }
     }
 

@@ -9,7 +9,7 @@ fn main() {
         None => usage(),
         Some(cmd) => match cmd.as_str() {
             "start" => cmd_start(args),
-            "stop" => (),
+            "stop" => cmd_stop(args),
             "edit" => cmd_edit(args),
             "status" => cmd_status(args),
             "today" => cmd_today(args),
@@ -22,7 +22,7 @@ fn main() {
             "pto" => (),
             "short" => (),
             "path" => (),
-            "validate" => cmd_validate(args),
+            "validate" => cmd_validate(),
             cmd => unknown_command(cmd),
         },
     }
@@ -39,15 +39,24 @@ fn usage() -> ! {
 }
 
 fn cmd_start(_: impl Iterator) {
+    cmd_validate();
     match start_new_entry().unwrap() {
         None => println!("Starting work."),
         Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
     };
 }
 
+fn cmd_stop(_: impl Iterator) {
+    cmd_validate();
+    match stop_current_entry().unwrap() {
+        Some(minutes) => println!("You just worked for {} minutes.", minutes),
+        None => println!("You haven't started working yet!"),
+    };
+}
+
 fn cmd_edit(_: impl Iterator) -> ! {
     let editor = std::env::var("EDITOR").unwrap();
-    let path = t_data_file();
+    let path = t_data_file().unwrap();
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
@@ -61,7 +70,7 @@ fn cmd_edit(_: impl Iterator) -> ! {
 }
 
 fn cmd_status(_: impl Iterator) {
-    let entry = read_last_entry().expect(format!("error parsing {}", t_data_file()).as_str());
+    let entry = read_last_entry().expect(format!("error parsing {}", t_data_file().unwrap()).as_str());
     match entry {
         None => println!("NOT working"),
         Some(e) => match e.stop {
@@ -97,7 +106,7 @@ fn cmd_week(_: impl Iterator) {
     println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
 }
 
-fn cmd_validate(_: impl Iterator) {
+fn cmd_validate() {
     let mut maybe_last_entry = None;
     let mut n = 0;
     for entry in read_entries().unwrap() {
