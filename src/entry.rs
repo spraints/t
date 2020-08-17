@@ -10,18 +10,29 @@ pub struct Entry {
 
 #[cfg(not(test))]
 pub mod real_time {
+    use std::cell::RefCell;
     use time::{OffsetDateTime, UtcOffset};
 
-    // TODO - don't use this crate, it pulls in a bunch of dependencies.
-    use cached::proc_macro::cached;
+    thread_local! {
+        static LOCAL_OFFSET: RefCell<Option<UtcOffset>> = RefCell::new(None);
+    }
 
     pub fn now() -> OffsetDateTime {
         OffsetDateTime::now_local()
     }
 
-    #[cached]
     pub fn local_offset() -> UtcOffset {
-        UtcOffset::current_local_offset()
+        LOCAL_OFFSET.with(|cell| {
+            let val = cell.borrow().as_ref().cloned();
+            match val {
+                Some(ret) => ret,
+                None => {
+                    let ret = UtcOffset::current_local_offset();
+                    *cell.borrow_mut() = Some(ret);
+                    ret
+                }
+            }
+        })
     }
 }
 
