@@ -1,6 +1,7 @@
 use std::os::unix::process::CommandExt;
 use t::extents;
 use t::file::*;
+use t::iter::*;
 
 fn main() {
     // Skip over the program name.

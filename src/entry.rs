@@ -1,8 +1,9 @@
+use std::clone::Clone;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use time::{self, Date, OffsetDateTime, PrimitiveDateTime};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
     pub start: Time,
     pub stop: Option<Time>,
@@ -103,6 +104,13 @@ impl Entry {
         self.start.wrapped.date()
     }
 
+    pub fn stop_date(&self) -> Date {
+        match &self.stop {
+            None => now().date(),
+            Some(t) => t.wrapped.date(),
+        }
+    }
+
     pub fn is_finished(&self) -> bool {
         self.stop.is_some()
     }
@@ -173,7 +181,7 @@ impl Display for Entry {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Time {
     wrapped: OffsetDateTime,
     implied_tz: bool,
