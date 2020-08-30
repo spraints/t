@@ -145,28 +145,28 @@ impl Entry {
         duration.whole_minutes()
     }
 
-    pub fn minutes_between(&self, from: &OffsetDateTime, to: &OffsetDateTime) -> i64 {
-        if &self.start.wrapped > to {
+    pub fn minutes_between(&self, from: OffsetDateTime, to: OffsetDateTime) -> i64 {
+        if self.start.wrapped > to {
             return 0;
         }
-        let start: &OffsetDateTime = if &self.start.wrapped > from {
-            &self.start.wrapped
+        let start: OffsetDateTime = if self.start.wrapped > from {
+            self.start.wrapped
         } else {
             from
         };
-        let stop: &OffsetDateTime = match &self.stop {
+        let stop: OffsetDateTime = match &self.stop {
             None => to,
             Some(t) => {
-                if &t.wrapped < from {
+                if t.wrapped < from {
                     return 0;
-                } else if &t.wrapped < to {
-                    &t.wrapped
+                } else if t.wrapped < to {
+                    t.wrapped
                 } else {
                     to
                 }
             }
         };
-        (*stop - *start).whole_minutes()
+        (stop - start).whole_minutes()
     }
 }
 
@@ -326,7 +326,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
-        assert_eq!(60, entry.minutes_between(&start, &stop));
+        assert_eq!(60, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -338,7 +338,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 19), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
-        assert_eq!(0, entry.minutes_between(&start, &stop));
+        assert_eq!(0, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -350,7 +350,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 22), time!(0:00)).assume_utc();
-        assert_eq!(0, entry.minutes_between(&start, &stop));
+        assert_eq!(0, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -362,7 +362,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
-        assert_eq!(30, entry.minutes_between(&start, &stop));
+        assert_eq!(30, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -374,7 +374,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
-        assert_eq!(30, entry.minutes_between(&start, &stop));
+        assert_eq!(30, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -386,7 +386,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:10)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:50)).assume_utc();
-        assert_eq!(40, entry.minutes_between(&start, &stop));
+        assert_eq!(40, entry.minutes_between(start, stop));
         Ok(())
     }
 
@@ -398,7 +398,7 @@ mod tests {
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
-        assert_eq!(15 * 60, entry.minutes_between(&start, &stop));
+        assert_eq!(15 * 60, entry.minutes_between(start, stop));
         Ok(())
     }
 }

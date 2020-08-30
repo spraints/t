@@ -1,7 +1,9 @@
 use std::os::unix::process::CommandExt;
+use t::entry::Entry;
 use t::extents;
 use t::file::*;
 use t::iter::*;
+use time::{Date, Duration, OffsetDateTime};
 
 fn main() {
     // Skip over the program name.
@@ -86,9 +88,7 @@ fn cmd_today(_: impl Iterator) {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
     let entries = read_last_entries(100).expect("error parsing data file");
-    let minutes = entries.into_iter().fold(0, |sum, entry| {
-        sum + entry.minutes_between(&start_today, &now)
-    });
+    let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
     println!("8h=480m");
 }
@@ -97,9 +97,7 @@ fn cmd_week(_: impl Iterator) {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
     let entries = read_last_entries(100).expect("error parsing data file");
-    let minutes = entries.into_iter().fold(0, |sum, entry| {
-        sum + entry.minutes_between(&start_week, &now)
-    });
+    let minutes = minutes_between(&entries, start_week, now);
     println!(
         "You have worked for {} minutes since {}.",
         minutes,
@@ -118,4 +116,10 @@ fn cmd_validate() {
         }
         maybe_last_entry = Some(entry);
     }
+}
+
+fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
+    entries
+        .iter()
+        .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
