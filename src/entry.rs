@@ -78,9 +78,9 @@ pub mod mock_time {
 }
 
 #[cfg(test)]
-use mock_time::{local_offset, now};
+pub use mock_time::{local_offset, now};
 #[cfg(not(test))]
-use real_time::{local_offset, now};
+pub use real_time::{local_offset, now};
 
 impl Entry {
     pub fn start() -> Self {

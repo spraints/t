@@ -1,6 +1,6 @@
 use gumdrop::Options;
 use std::os::unix::process::CommandExt;
-use t::entry::Entry;
+use t::entry::{local_offset, Entry};
 use t::extents;
 use t::file::*;
 use t::iter::*;
@@ -26,6 +26,8 @@ enum TCommand {
     Today(NoArgs),
     #[options(help = "show time worked this week")]
     Week(NoArgs),
+    #[options(help = "show spark graph of all entries")]
+    All(NoArgs),
 }
 
 #[derive(Options)]
@@ -42,7 +44,7 @@ fn main() {
             TCommand::Status(_) => cmd_status(),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
-            //TCommand::All(_) => cmd_all(),
+            TCommand::All(_) => cmd_all(),
             //TCommand::Punchcard(_) => cmd_punchcard(),
             //TCommand::Days(_) => cmd_days(),
             //TCommand::CSV(_) => cmd_csv(),
@@ -130,6 +132,60 @@ fn cmd_week() {
     println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
 }
 
+fn cmd_all() {
+    // TODO - move all this to src/report.rs
+    /*
+    let width = match term_size::dimensions() {
+        None => 80,
+        Some((_, w)) => w,
+    };
+    */
+    let entries = read_entries().unwrap();
+    for (week_start, week_entries) in each_week(entries) {
+        let week_end = week_start + Duration::days(6);
+        let minutes = minutes_between_days(&week_entries, week_start, week_end);
+        let segments = week_entries.len() as u32;
+        let mut entry_minutes = week_entries.iter().map(|entry| entry.minutes());
+        let (avg, min, max, stddev) = match segments {
+            0 => (0, 0, 0, 0),
+            1 => {
+                let val = entry_minutes.next().unwrap_or(-1);
+                (val, val, val, 0)
+            }
+            _ => {
+                let avg = minutes / segments as i64; // lies
+                let mut min = 10080;
+                let mut max = 0;
+                let mut sumsq: u64 = 0;
+                for minutes in entry_minutes {
+                    if minutes < min {
+                        min = minutes
+                    }
+                    if minutes > max {
+                        max = minutes
+                    }
+                    let diff = minutes - avg;
+                    sumsq += (diff * diff) as u64;
+                }
+                (avg, min, max, sqrtint(sumsq / (segments as u64 - 1)))
+            }
+        };
+        for (day, day_entries) in each_day(week_entries) {
+            // make sparks!
+        }
+        println!("{week_start} - {week_end} {minutes:>6} min {segments:>4} segments  min/avg/max/stddev={min:>3}/{avg:>3}/{max:>3}/{stddev:>3}  {sparks}",
+                 week_start=week_start,
+                 week_end=week_end,
+                 minutes=minutes,
+                 segments=segments,
+                 min=min,
+                 avg=avg,
+                 max=max,
+                 stddev=stddev,
+                 sparks=0);
+    }
+}
+
 fn cmd_validate() {
     let mut maybe_last_entry = None;
     let mut n = 0;
@@ -142,8 +198,24 @@ fn cmd_validate() {
     }
 }
 
+fn sqrtint(n: u64) -> u64 {
+    let mut i = 1;
+    while i * i <= n {
+        i += 1;
+    }
+    i - 1
+}
+
 fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
+}
+
+fn minutes_between_days(entries: &Vec<Entry>, start: Date, stop: Date) -> i64 {
+    minutes_between(
+        entries,
+        start.midnight().assume_offset(local_offset()),
+        stop.next_day().midnight().assume_offset(local_offset()),
+    )
 }
