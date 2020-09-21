@@ -1,3 +1,4 @@
+use gumdrop::Options;
 use std::os::unix::process::CommandExt;
 use t::entry::Entry;
 use t::extents;
@@ -5,30 +6,53 @@ use t::file::*;
 use t::iter::*;
 use time::{Date, Duration, OffsetDateTime};
 
+#[derive(Options)]
+struct MainOptions {
+    #[options(command)]
+    command: Option<TCommand>,
+}
+
+#[derive(Options)]
+enum TCommand {
+    #[options(help = "start a time entry")]
+    Start(NoArgs),
+    #[options(help = "stop a time entry")]
+    Stop(NoArgs),
+    #[options(help = "edit the time entry database in $EDITOR")]
+    Edit(NoArgs),
+    #[options(help = "show current status")]
+    Status(NoArgs),
+    #[options(help = "show time worked today")]
+    Today(NoArgs),
+    #[options(help = "show time worked this week")]
+    Week(NoArgs),
+}
+
+#[derive(Options)]
+struct NoArgs {}
+
 fn main() {
-    // Skip over the program name.
-    let mut args = std::env::args().skip(1);
-    match args.next() {
+    let opts = MainOptions::parse_args_default_or_exit();
+    match opts.command {
         None => usage(),
-        Some(cmd) => match cmd.as_str() {
-            "start" => cmd_start(args),
-            "stop" => cmd_stop(args),
-            "edit" => cmd_edit(args),
-            "status" => cmd_status(args),
-            "today" => cmd_today(args),
-            "week" => cmd_week(args),
-            "all" => (),
-            "punchcard" => (),
-            "days" => (),
-            "csv" => (),
-            "svg" => (),
-            "pto" => (),
-            "short" => (),
-            "path" => (),
-            "validate" => cmd_validate(),
-            cmd => unknown_command(cmd),
+        Some(cmd) => match cmd {
+            TCommand::Start(_) => cmd_start(),
+            TCommand::Stop(_) => cmd_stop(),
+            TCommand::Edit(_) => cmd_edit(),
+            TCommand::Status(_) => cmd_status(),
+            TCommand::Today(_) => cmd_today(),
+            TCommand::Week(_) => cmd_week(),
+            //TCommand::All(_) => cmd_all(),
+            //TCommand::Punchcard(_) => cmd_punchcard(),
+            //TCommand::Days(_) => cmd_days(),
+            //TCommand::CSV(_) => cmd_csv(),
+            //TCommand::SVG(_) => cmd_svg(),
+            //TCommand::PTO(_) => cmd_pto(),
+            //TCommand::Short(_) => cmd_short(),
+            //TCommand::Path(_) => cmd_path(),
+            //TCommand::Validate(_) => cmd_validate(),
         },
-    }
+    };
 }
 
 fn unknown_command(cmd: &str) -> ! {
@@ -41,7 +65,7 @@ fn usage() -> ! {
     std::process::exit(1)
 }
 
-fn cmd_start(_: impl Iterator) {
+fn cmd_start() {
     cmd_validate();
     match start_new_entry().unwrap() {
         None => println!("Starting work."),
@@ -49,7 +73,7 @@ fn cmd_start(_: impl Iterator) {
     };
 }
 
-fn cmd_stop(_: impl Iterator) {
+fn cmd_stop() {
     cmd_validate();
     match stop_current_entry().unwrap() {
         Some(minutes) => println!("You just worked for {} minutes.", minutes),
@@ -57,7 +81,7 @@ fn cmd_stop(_: impl Iterator) {
     };
 }
 
-fn cmd_edit(_: impl Iterator) -> ! {
+fn cmd_edit() -> ! {
     let editor = std::env::var("EDITOR").unwrap();
     let path = t_data_file().unwrap();
     eprintln!(
@@ -72,7 +96,7 @@ fn cmd_edit(_: impl Iterator) -> ! {
     std::process::exit(1)
 }
 
-fn cmd_status(_: impl Iterator) {
+fn cmd_status() {
     let entry =
         read_last_entry().expect(format!("error parsing {}", t_data_file().unwrap()).as_str());
     match entry {
@@ -84,7 +108,7 @@ fn cmd_status(_: impl Iterator) {
     };
 }
 
-fn cmd_today(_: impl Iterator) {
+fn cmd_today() {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
     let entries = read_last_entries(100).expect("error parsing data file");
@@ -93,7 +117,7 @@ fn cmd_today(_: impl Iterator) {
     println!("8h=480m");
 }
 
-fn cmd_week(_: impl Iterator) {
+fn cmd_week() {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
     let entries = read_last_entries(100).expect("error parsing data file");
