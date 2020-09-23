@@ -15,8 +15,13 @@ integration-rust: t
 
 t: target/debug/t
 
+release: target/release/t
+
 target/debug/t: $(SRCS) Cargo.toml Cargo.lock
 	cargo build
+
+target/release/t: $(SRCS) Cargo.toml Cargo.lock
+	cargo build --release
 
 bench: target/debug/bench-parse target/debug/bench-sum
 	bash bench.sh
