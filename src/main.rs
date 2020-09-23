@@ -23,13 +23,19 @@ enum TCommand {
     #[options(help = "edit the time entry database in $EDITOR")]
     Edit(NoArgs),
     #[options(help = "show current status")]
-    Status(NoArgs),
+    Status(StatusArgs),
     #[options(help = "show time worked today")]
     Today(NoArgs),
     #[options(help = "show time worked this week")]
     Week(NoArgs),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+}
+
+#[derive(Options)]
+struct StatusArgs {
+    #[options(help = "also calculate the time worked this week so far")]
+    with_week: bool,
 }
 
 #[derive(Options)]
@@ -43,7 +49,7 @@ fn main() {
             TCommand::Start(_) => cmd_start(),
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
-            TCommand::Status(_) => cmd_status(),
+            TCommand::Status(args) => cmd_status(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
             TCommand::All(_) => cmd_all(),
@@ -95,16 +101,22 @@ fn cmd_edit() -> ! {
     std::process::exit(1)
 }
 
-fn cmd_status() {
-    let entry =
-        read_last_entry().expect(format!("error parsing {}", t_data_file().unwrap()).as_str());
-    match entry {
-        None => println!("NOT working"),
+fn cmd_status(args: StatusArgs) {
+    let entries = read_last_entries(100).expect("error parsing data file");
+    let status = match entries.last() {
+        None => "NOT working",
         Some(e) => match e.stop {
-            None => println!("WORKING"),
-            Some(_) => println!("NOT working"),
+            None => "WORKING",
+            Some(_) => "NOT working",
         },
     };
+    if args.with_week {
+        let (start_week, now) = extents::this_week();
+        let minutes = minutes_between(&entries, start_week, now);
+        println!("{} ({})", status, minutes);
+    } else {
+        println!("{}", status);
+    }
 }
 
 fn cmd_today() {

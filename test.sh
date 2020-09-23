@@ -54,6 +54,7 @@ assert_out "Starting work" -- start
 assert_out "You already started working," -- start
 
 assert_out "WORKING" -- status
+assert_out "WORKING (0)" -- status --with-week
 
 assert_out "You just worked for " -- stop
 assert_out "You haven't started working yet" -- stop
