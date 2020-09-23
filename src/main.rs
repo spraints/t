@@ -1,10 +1,12 @@
 use gumdrop::Options;
 use std::os::unix::process::CommandExt;
-use t::entry::{local_offset, Entry};
+use t::entry::Entry;
 use t::extents;
 use t::file::*;
-use t::iter::*;
-use time::{Date, Duration, OffsetDateTime};
+use t::report;
+use time::{Duration, OffsetDateTime};
+
+const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
 
 #[derive(Options)]
 struct MainOptions {
@@ -133,57 +135,31 @@ fn cmd_week() {
 }
 
 fn cmd_all() {
-    // TODO - move all this to src/report.rs
-    /*
-    let width = match term_size::dimensions() {
-        None => 80,
-        Some((_, w)) => w,
-    };
-    */
-    let entries = read_entries().unwrap();
-    for (week_start, week_entries) in each_week(entries) {
-        let week_end = week_start + Duration::days(6);
-        let minutes = minutes_between_days(&week_entries, week_start, week_end);
-        let segments = week_entries.len() as u32;
-        let mut entry_minutes = week_entries.iter().map(|entry| entry.minutes());
-        let (avg, min, max, stddev) = match segments {
-            0 => (0, 0, 0, 0),
-            1 => {
-                let val = entry_minutes.next().unwrap_or(-1);
-                (val, val, val, 0)
-            }
-            _ => {
-                let avg = minutes / segments as i64; // lies
-                let mut min = 10080;
-                let mut max = 0;
-                let mut sumsq: u64 = 0;
-                for minutes in entry_minutes {
-                    if minutes < min {
-                        min = minutes
+    let entries = read_entries().expect("error parsing data file");
+    for line in report::calc_all(entries, &DEFAULT_SPARKS) {
+        let week_end = line.start + Duration::days(6);
+        print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
+        if let Some(analysis) = line.analysis {
+            print!(
+                " {:4} segments  min/avg/max/stddev={:3}/{:3}/{:3}/{:3}  ",
+                line.segments, analysis.min, analysis.mean, analysis.max, analysis.stddev
+            );
+            let mut first = true;
+            for day in analysis.sparks {
+                if day.len() > 0 {
+                    if !first {
+                        print!("  ");
                     }
-                    if minutes > max {
-                        max = minutes
+                    for spark in day {
+                        print!("{}", spark);
                     }
-                    let diff = minutes - avg;
-                    sumsq += (diff * diff) as u64;
+                    first = false;
                 }
-                (avg, min, max, sqrtint(sumsq / (segments as u64 - 1)))
             }
-        };
-        for (day, day_entries) in each_day(week_entries) {
-            // make sparks!
         }
-        println!("{week_start} - {week_end} {minutes:>6} min {segments:>4} segments  min/avg/max/stddev={min:>3}/{avg:>3}/{max:>3}/{stddev:>3}  {sparks}",
-                 week_start=week_start,
-                 week_end=week_end,
-                 minutes=minutes,
-                 segments=segments,
-                 min=min,
-                 avg=avg,
-                 max=max,
-                 stddev=stddev,
-                 sparks=0);
+        print!("\n");
     }
+    println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
 }
 
 fn cmd_validate() {
@@ -198,24 +174,8 @@ fn cmd_validate() {
     }
 }
 
-fn sqrtint(n: u64) -> u64 {
-    let mut i = 1;
-    while i * i <= n {
-        i += 1;
-    }
-    i - 1
-}
-
 fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
-}
-
-fn minutes_between_days(entries: &Vec<Entry>, start: Date, stop: Date) -> i64 {
-    minutes_between(
-        entries,
-        start.midnight().assume_offset(local_offset()),
-        stop.next_day().midnight().assume_offset(local_offset()),
-    )
 }

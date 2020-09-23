@@ -1,25 +1,26 @@
 use crate::entry::{local_offset, Entry};
 use crate::iter::{each_day, each_week};
+use std::fmt::Debug;
 use time::{Date, Duration, OffsetDateTime};
 
-#[derive(Debug, PartialEq)]
-struct All<T: PartialEq> {
-    start: Date,
-    minutes: i64,
-    segments: usize,
-    analysis: Option<AllAnalysis<T>>,
+#[derive(PartialEq)]
+pub struct All<T: PartialEq> {
+    pub start: Date,
+    pub minutes: i64,
+    pub segments: usize,
+    pub analysis: Option<AllAnalysis<T>>,
 }
 
 #[derive(Debug, PartialEq)]
-struct AllAnalysis<T: PartialEq> {
-    min: i64,
-    max: i64,
-    mean: i64,
-    stddev: i64,
-    sparks: Vec<Vec<T>>,
+pub struct AllAnalysis<T: PartialEq> {
+    pub min: i64,
+    pub max: i64,
+    pub mean: i64,
+    pub stddev: i64,
+    pub sparks: Vec<Vec<T>>,
 }
 
-fn calc_all<T: PartialEq + Copy>(entries: Vec<Entry>, sparks: &Vec<T>) -> Vec<All<T>> {
+pub fn calc_all<T: PartialEq + Copy>(entries: Vec<Entry>, sparks: &[T]) -> Vec<All<T>> {
     each_week(entries)
         .map(|(start, entries)| calc_all_week(start, entries, sparks))
         .collect()
@@ -28,11 +29,14 @@ fn calc_all<T: PartialEq + Copy>(entries: Vec<Entry>, sparks: &Vec<T>) -> Vec<Al
 const ONE_DAY: Duration = Duration::days(1);
 const SUNDAY_TO_SATURDAY: Duration = Duration::days(6);
 
-fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: &Vec<T>) -> All<T> {
-    let segments = entries.len();
-    let (minutes, analysis) = if segments < 2 {
+fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: &[T]) -> All<T> {
+    let (segments, minutes, analysis) = if entries.len() < 2 {
         let stop = start + SUNDAY_TO_SATURDAY;
-        (minutes_between_days(&entries, start, stop), None)
+        (
+            entries.len(),
+            minutes_between_days(&entries, start, stop),
+            None,
+        )
     } else {
         let entry_minutes_by_day: Vec<Vec<i64>> = each_day(entries)
             .filter(|(_, entries)| !entries.is_empty())
@@ -49,6 +53,9 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
             .iter()
             .flat_map(|entries| entries.iter().map(|e| *e))
             .collect();
+        let segments = entry_minutes_by_day
+            .iter()
+            .fold(0, |sum, minutes| sum + minutes.len());
         let total_minutes = entry_minutes.iter().fold(0, |sum, minutes| sum + minutes);
         let mean = total_minutes / segments as i64;
         let mut min = 10080;
@@ -66,6 +73,7 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
         }
         let stddev = sqrtint(sumsq / (segments as i64 - 1)) as i64;
         (
+            segments,
             total_minutes,
             Some(AllAnalysis {
                 min,
@@ -87,10 +95,13 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
     }
 }
 
-fn spark_for<T: Copy>(m: i64, max: i64, sparks: &Vec<T>) -> T {
-    let binsize = 1 + (max - 1) / sparks.len() as i64;
-    let i = m / binsize;
-    sparks[i as usize]
+fn spark_for<T: Copy>(m: i64, max: i64, sparks: &[T]) -> T {
+    let m = m as usize;
+    let max = max as usize;
+    match sparks.get(m * sparks.len() / max) {
+        None => sparks[sparks.len() - 1],
+        Some(s) => *s,
+    }
 }
 
 fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
@@ -128,6 +139,7 @@ mod tests {
                      2013-08-02 10:15,2013-08-02 10:44\n\
                      2013-08-11 10:45,2013-08-11 11:46\n\
                      2013-08-22 10:45,2013-08-22 11:47\n\
+                     2013-08-22 23:49,2013-08-23 00:02\n\
                      2013-08-31 10:45,2013-08-31 11:48\n\
                      2013-09-04 10:45,2013-09-04 11:04\n\
                      2013-09-04 11:04,2013-09-04 11:16\n\
@@ -149,7 +161,7 @@ mod tests {
                         mean: 29,
                         max: 30,
                         stddev: 1,
-                        sparks: vec![vec![1], vec![6], vec![6]]
+                        sparks: vec![vec![6], vec![6]]
                     })
                 },
                 super::All {
@@ -161,19 +173,25 @@ mod tests {
                 super::All {
                     start: date!(2013 - 08 - 11),
                     minutes: 61,
-                    segments: 0,
+                    segments: 1,
                     analysis: None
                 },
                 super::All {
                     start: date!(2013 - 08 - 18),
-                    minutes: 62,
-                    segments: 0,
-                    analysis: None
+                    minutes: 75,
+                    segments: 3, // the one that spans midnight counts for each day.
+                    analysis: Some(super::AllAnalysis {
+                        min: 2,
+                        mean: 25,
+                        max: 62,
+                        stddev: 32,
+                        sparks: vec![vec![6, 1], vec![0]]
+                    })
                 },
                 super::All {
                     start: date!(2013 - 08 - 25),
                     minutes: 63,
-                    segments: 0,
+                    segments: 1,
                     analysis: None
                 },
                 super::All {
@@ -185,11 +203,42 @@ mod tests {
                         mean: 12,
                         max: 19,
                         stddev: 3,
-                        sparks: vec![vec![3], vec![6, 4, 3], vec![4, 3]]
+                        sparks: vec![vec![6, 4, 3], vec![4, 3]]
                     })
                 },
             ]
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_spark_for() {
+        let sparks = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+        let check = |c, n| assert_eq!(c, super::spark_for(n, 322, &sparks), "{}/322", n);
+        check('a', 0);
+        check('a', 45);
+        check('b', 46);
+        check('b', 91);
+        check('c', 92);
+        check('c', 137);
+        check('d', 138);
+        check('d', 183);
+        check('e', 184);
+        check('e', 229);
+        check('f', 230);
+        check('f', 275);
+        check('g', 276);
+        check('g', 321);
+        check('g', 322);
+    }
+}
+
+impl<T: PartialEq + Debug> Debug for All<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "All {{ start: {:?}, minutes: {:?}, segments: {:?}, analysis: {:?}}}\n",
+            self.start, self.minutes, self.segments, self.analysis
+        )
     }
 }
