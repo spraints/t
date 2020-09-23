@@ -62,7 +62,10 @@ assert_out "You haven't started working yet" -- stop
 assert_out "NOT working" -- status
 
 fixt 2013-09.csv \
-  assert_diff 2013-09.out -- all
+  assert_diff 2013-09.all -- all
+
+fixt 2013-09.csv \
+  assert_diff 2013-09.days -- days
 
 TODAY="$(date +%Y-%m-%d)"
 EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee" \

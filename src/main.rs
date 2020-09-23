@@ -30,6 +30,8 @@ enum TCommand {
     Week(NoArgs),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+    #[options(help = "show a table of time worked per day")]
+    Days(NoArgs),
 }
 
 #[derive(Options)]
@@ -54,7 +56,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::All(_) => cmd_all(),
             //TCommand::Punchcard(_) => cmd_punchcard(),
-            //TCommand::Days(_) => cmd_days(),
+            TCommand::Days(_) => cmd_days(),
             //TCommand::CSV(_) => cmd_csv(),
             //TCommand::SVG(_) => cmd_svg(),
             //TCommand::PTO(_) => cmd_pto(),
@@ -125,7 +127,7 @@ fn cmd_today() {
     let entries = read_last_entries(100).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
-    println!("8h=480m");
+    print_day_legend();
 }
 
 fn cmd_week() {
@@ -138,12 +140,12 @@ fn cmd_week() {
         minutes,
         start_week.format("%Y-%m-%d")
     );
-    println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
+    print_week_legend();
 }
 
 fn cmd_all() {
     let entries = read_entries().expect("error parsing data file");
-    for line in report::calc_all(entries, &DEFAULT_SPARKS) {
+    for line in report::all::calc(entries, &DEFAULT_SPARKS) {
         let week_end = line.start + Duration::days(6);
         print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
         if let Some(analysis) = line.analysis {
@@ -166,7 +168,13 @@ fn cmd_all() {
         }
         print!("\n");
     }
-    println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
+    print_week_legend();
+}
+
+fn cmd_days() {
+    let entries = read_entries().expect("error parsing data file");
+    print!("{}", report::days::prepare(entries));
+    print_week_legend();
 }
 
 fn cmd_validate() {
@@ -185,4 +193,12 @@ fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDate
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
+}
+
+fn print_day_legend() {
+    println!("8h=480m");
+}
+
+fn print_week_legend() {
+    println!("8h=480m 16h=960m 24h=1440m 32h=1920m 40h=2400m");
 }

@@ -9,8 +9,9 @@ default-run = "t"
 
 [dependencies]
 gumdrop = "0.8.0"
-time = "0.2.16"
 term_size = "0.3.2"
+time = "0.2.16"
 
 [dev-dependencies]
+pretty_assertions = "0.6.1"
 tempfile = "3.1.0"
