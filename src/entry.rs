@@ -174,9 +174,9 @@ impl Display for Entry {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.start)?;
         if let Some(stop) = &self.stop {
-            write!(f, ",{}\n", stop)
+            writeln!(f, ",{}", stop)
         } else {
-            write!(f, "\n")
+            writeln!(f)
         }
     }
 }
@@ -205,7 +205,7 @@ impl Time {
     ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
-        let offset = utc_offset.and_then(|tz| Some(explicit_offset(tz)));
+        let offset = utc_offset.map(explicit_offset);
         Ok(Self::from_dto(date, time, offset))
     }
 

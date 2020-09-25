@@ -51,12 +51,12 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
             .collect();
         let entry_minutes: Vec<i64> = entry_minutes_by_day
             .iter()
-            .flat_map(|entries| entries.iter().map(|e| *e))
+            .flat_map(|entries| entries.iter().copied())
             .collect();
         let segments = entry_minutes_by_day
             .iter()
             .fold(0, |sum, minutes| sum + minutes.len());
-        let total_minutes = entry_minutes.iter().fold(0, |sum, minutes| sum + minutes);
+        let total_minutes = entry_minutes.iter().sum();
         let mean = total_minutes / segments as i64;
         let mut min = 10080;
         let mut max = 0;
@@ -104,13 +104,13 @@ fn spark_for<T: Copy>(m: i64, max: i64, sparks: &[T]) -> T {
     }
 }
 
-fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
+fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
 
-fn minutes_between_days(entries: &Vec<Entry>, start: Date, stop: Date) -> i64 {
+fn minutes_between_days(entries: &[Entry], start: Date, stop: Date) -> i64 {
     minutes_between(
         entries,
         start.midnight().assume_offset(local_offset()),

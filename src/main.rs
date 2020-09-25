@@ -155,7 +155,7 @@ fn cmd_all() {
             );
             let mut first = true;
             for day in analysis.sparks {
-                if day.len() > 0 {
+                if !day.is_empty() {
                     if !first {
                         print!("  ");
                     }
@@ -166,7 +166,7 @@ fn cmd_all() {
                 }
             }
         }
-        print!("\n");
+        println!();
     }
     print_week_legend();
 }
@@ -179,9 +179,7 @@ fn cmd_days() {
 
 fn cmd_validate() {
     let mut maybe_last_entry = None;
-    let mut n = 0;
-    for entry in read_entries().unwrap() {
-        n = n + 1;
+    for (n, entry) in read_entries().unwrap().into_iter().enumerate() {
         if let Err(err) = entry.is_valid_after(&maybe_last_entry) {
             println!("{}: {}", n, err);
         }
@@ -189,7 +187,7 @@ fn cmd_validate() {
     }
 }
 
-fn minutes_between(entries: &Vec<Entry>, start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
+fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))

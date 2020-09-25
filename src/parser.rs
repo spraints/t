@@ -34,7 +34,7 @@ pub fn parse_entry<R: Read>(r: R) -> Result<(Option<Entry>, R), Box<dyn Error>> 
     Ok((entry, parser.reader))
 }
 
-pub fn write_entries(w: &mut impl Write, entries: &Vec<Entry>) -> Result<(), Box<dyn Error>> {
+pub fn write_entries(w: &mut impl Write, entries: &[Entry]) -> Result<(), Box<dyn Error>> {
     for entry in entries {
         write!(w, "{}", entry)?;
     }
@@ -60,16 +60,16 @@ impl<R: Read> Parser<R> {
         match self.parse_time()? {
             None => Ok(None),
             Some((start, true)) => Ok(Some(Entry {
-                start: start,
+                start,
                 stop: None,
             })),
             Some((start, false)) => match (self.parse_time())? {
                 None => Ok(Some(Entry {
-                    start: start,
+                    start,
                     stop: None,
                 })),
                 Some((stop, _)) => Ok(Some(Entry {
-                    start: start,
+                    start,
                     stop: Some(stop),
                 })),
             },
@@ -174,10 +174,10 @@ impl<R: Read> Parser<R> {
         }
         let c = buf[0];
         if c == b'\n' {
-            self.line = self.line + 1;
+            self.line += 1;
             self.col = 0;
         } else {
-            self.col = self.col + 1;
+            self.col += 1;
         }
         Ok(Some(c))
     }
