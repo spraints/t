@@ -8,7 +8,7 @@ cargo-test:
 	cargo test
 
 integration-ruby:
-	time bash test.sh
+	time env COMMAND=bin/t bash test.sh
 
 integration-rust: t
 	time env COMMAND=target/debug/t bash test.sh
