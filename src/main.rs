@@ -32,6 +32,10 @@ enum TCommand {
     All(NoArgs),
     #[options(help = "show a table of time worked per day")]
     Days(NoArgs),
+    #[options(help = "show the path to t.csv")]
+    Path(NoArgs),
+    #[options(help = "check for any formatting errors in t.csv")]
+    Validate(NoArgs),
 }
 
 #[derive(Options)]
@@ -61,8 +65,8 @@ fn main() {
             //TCommand::SVG(_) => cmd_svg(),
             //TCommand::PTO(_) => cmd_pto(),
             //TCommand::Short(_) => cmd_short(),
-            //TCommand::Path(_) => cmd_path(),
-            //TCommand::Validate(_) => cmd_validate(),
+            TCommand::Path(_) => cmd_path(),
+            TCommand::Validate(_) => cmd_validate(),
         },
     };
 }
@@ -175,6 +179,10 @@ fn cmd_days() {
     let entries = read_entries().expect("error parsing data file");
     print!("{}", report::days::prepare(entries));
     print_week_legend();
+}
+
+fn cmd_path() {
+    println!("{}", t_data_file().unwrap());
 }
 
 fn cmd_validate() {
