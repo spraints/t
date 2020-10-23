@@ -2,16 +2,19 @@
 
 SRCS = $(shell find src -name '*.rs')
 
-test: cargo-test integration-ruby integration-rust
+test: cargo-test rspec integration-ruby integration-rust
 
 cargo-test:
 	cargo test
+
+rspec:
+	bin/rspec
 
 integration-ruby:
 	time env COMMAND=bin/t bash test.sh
 
 integration-rust: t
-	time env COMMAND=target/debug/t bash test.sh
+	time env COMMAND="cargo run" bash test.sh
 
 t: target/debug/t
 

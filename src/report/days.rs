@@ -106,6 +106,12 @@ fn convert_week(start: Date, entries: Vec<Entry>) -> Week {
     let mut minutes = [0; 7];
     for (day_start, entries) in each_day(entries) {
         let i = (day_start - start).whole_days();
+        if i < 0 {
+            continue;
+        }
+        if i > 6 {
+            continue;
+        }
         minutes[i as usize] = minutes_on_day(day_start, entries);
     }
     Week { start, minutes }
@@ -137,10 +143,11 @@ fn finish(state: Option<State>) -> Report {
 #[cfg(test)]
 mod tests {
     use super::{prepare, Month, Report, Week, Year};
+    use crate::entry::mock_time::*;
     use crate::entry::Entry;
     use crate::parser::parse_entries;
     use pretty_assertions::assert_eq;
-    use time::date;
+    use time::{date, offset, time};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -167,6 +174,57 @@ mod tests {
                         }]
                     }]
                 }]
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_entry_covering_now() -> TestRes {
+        set_mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
+        let input = "2013-09-04 11:04 -0400";
+        let entries = parse_entries(input.as_bytes())?;
+        assert_eq!(
+            prepare(entries),
+            Report {
+                years: vec![Year {
+                    year: 2013,
+                    months: vec![Month {
+                        month: 9,
+                        weeks: vec![Week {
+                            start: date!(2013 - 09 - 01),
+                            minutes: [0, 0, 0, 56, 0, 0, 0]
+                        },]
+                    },]
+                },]
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_entry_spanning_weekend() -> TestRes {
+        let input = "2013-11-16 00:00,2013-11-17 09:20";
+        let entries = parse_entries(input.as_bytes())?;
+        assert_eq!(
+            prepare(entries),
+            Report {
+                years: vec![Year {
+                    year: 2013,
+                    months: vec![Month {
+                        month: 11,
+                        weeks: vec![
+                            Week {
+                                start: date!(2013 - 11 - 10),
+                                minutes: [0, 0, 0, 0, 0, 0, 1440]
+                            },
+                            Week {
+                                start: date!(2013 - 11 - 17),
+                                minutes: [560, 0, 0, 0, 0, 0, 0]
+                            },
+                        ]
+                    },]
+                },]
             }
         );
         Ok(())

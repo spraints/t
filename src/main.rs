@@ -175,6 +175,13 @@ fn cmd_all() {
     print_week_legend();
 }
 
+/*
+let width = match term_size::dimensions() {
+    None => 80,
+    Some((_, w)) => w,
+};
+*/
+
 fn cmd_days() {
     let entries = read_entries().expect("error parsing data file");
     print!("{}", report::days::prepare(entries));

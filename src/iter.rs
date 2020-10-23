@@ -1,5 +1,5 @@
-use crate::entry::Entry;
-use time::{Date, Duration, Weekday::*};
+use crate::entry::{now, Entry};
+use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
 pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
     DaysIterator {
@@ -7,6 +7,7 @@ pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
         days: 7,
         last_date: None,
         next_index: 0,
+        now: now(),
     }
 }
 
@@ -16,6 +17,7 @@ pub fn each_day(entries: Vec<Entry>) -> DaysIterator {
         days: 1,
         last_date: None,
         next_index: 0,
+        now: now(),
     }
 }
 
@@ -24,6 +26,7 @@ pub struct DaysIterator {
     days: u8,
     last_date: Option<Date>,
     next_index: usize,
+    now: OffsetDateTime,
 }
 
 impl Iterator for DaysIterator {
@@ -44,7 +47,7 @@ impl Iterator for DaysIterator {
                 if entry.start_date() >= next_date {
                     break;
                 } else {
-                    entries.push(entry.clone());
+                    entries.push(entry.clone().finish_if_not(self.now));
                     if entry.stop_date() >= next_date {
                         break;
                     }
@@ -83,8 +86,10 @@ impl DaysIterator {
 
 #[cfg(test)]
 mod tests {
+    use crate::entry::mock_time::*;
     use crate::parser::parse_entries;
-    use time::date;
+    use pretty_assertions::assert_eq;
+    use time::{date, offset, time};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -230,6 +235,18 @@ mod tests {
         let entries = parse_entries("2020-08-08 10:10,2020-08-08 11:10\n".as_bytes())?;
         let mut i = super::each_week(entries.clone());
         assert_eq!(Some((date!(2020 - 08 - 02), entries)), i.next());
+        assert_eq!(None, i.next());
+        Ok(())
+    }
+
+    #[test]
+    fn test_each_week_current_entry_in_progress() -> TestRes {
+        set_mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
+        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes())?;
+        let expected_entries =
+            parse_entries("2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes())?;
+        let mut i = super::each_week(entries.clone());
+        assert_eq!(Some((date!(2020 - 01 - 12), expected_entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())
     }

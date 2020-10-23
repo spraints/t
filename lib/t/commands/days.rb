@@ -1,5 +1,6 @@
 require 't'
 require 't/data'
+require 't/util'
 require 't/util/week_grouping'
 
 module T
@@ -30,8 +31,8 @@ module T
           current_week = Week.new(week_start)
 
           min_per_day = (0..6).map { |dow|
-            day_start = week_start + dow * ONE_DAY
-            day_end   = day_start + ONE_DAY
+            day_start = T::Util.add_days(week_start, dow)
+            day_end = T::Util.add_days(day_start, 1)
             entries.inject(0) { |n, e| n + e.minutes_between(day_start, day_end) }
           }
           current_week << min_per_day
@@ -56,8 +57,6 @@ module T
 
       private
 
-      ONE_DAY = 60 * 60 * 24 # seconds
-
       def in?(period, day)
         period && period.include?(day)
       end
@@ -80,7 +79,7 @@ module T
         end
 
         def label
-          "%s - %s" % [@start.strftime(T::DATE_FORMAT), (@start + 6 * ONE_DAY).strftime(T::DATE_FORMAT)]
+          "%s - %s" % [@start.strftime(T::DATE_FORMAT), T::Util.add_days(@start, 6).strftime(T::DATE_FORMAT)]
         end
 
         def <<(min_per_day)

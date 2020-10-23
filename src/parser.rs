@@ -59,15 +59,9 @@ impl<R: Read> Parser<R> {
     fn parse_entry(&mut self) -> Result<Option<Entry>, Box<dyn Error>> {
         match self.parse_time()? {
             None => Ok(None),
-            Some((start, true)) => Ok(Some(Entry {
-                start,
-                stop: None,
-            })),
+            Some((start, true)) => Ok(Some(Entry { start, stop: None })),
             Some((start, false)) => match (self.parse_time())? {
-                None => Ok(Some(Entry {
-                    start,
-                    stop: None,
-                })),
+                None => Ok(Some(Entry { start, stop: None })),
                 Some((stop, _)) => Ok(Some(Entry {
                     start,
                     stop: Some(stop),

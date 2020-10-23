@@ -13,3 +13,8 @@ module T
     @activity_words ||= T::ActivityWords.new
   end
 end
+
+def d(obj)
+  return unless ENV["T_DEBUG"]
+  $stderr.puts("#{obj.inspect} #{caller[0]}")
+end

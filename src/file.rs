@@ -363,9 +363,7 @@ type ReadResult = (File, Option<Entry>, u64, u64);
 
 // Get the last entry from the file, along with its start and stop
 // positions.
-fn read_for_update<P: AsRef<Path>>(
-    t_data_file: P,
-) -> Result<ReadResult, Box<dyn Error>> {
+fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn Error>> {
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)

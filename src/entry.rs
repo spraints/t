@@ -90,13 +90,23 @@ impl Entry {
         }
     }
 
+    pub fn finish_if_not(self, stop: OffsetDateTime) -> Self {
+        if self.is_finished() {
+            self
+        } else {
+            Self {
+                stop: Some(Time::at(stop)),
+                ..self
+            }
+        }
+    }
     pub fn finish(self) -> Self {
         if self.is_finished() {
             panic!("finish called for a finished entry! {}", self);
         }
         Self {
-            start: self.start,
             stop: Some(Time::now()),
+            ..self
         }
     }
 
@@ -191,6 +201,13 @@ impl Time {
     pub fn now() -> Self {
         Self {
             wrapped: now(),
+            implied_tz: false,
+        }
+    }
+
+    pub fn at(wrapped: OffsetDateTime) -> Self {
+        Self {
+            wrapped,
             implied_tz: false,
         }
     }
