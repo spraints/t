@@ -1,5 +1,5 @@
 use crate::entry::{local_offset, Entry};
-use crate::iter::{each_day, each_week};
+use crate::iter::{each_day_in_week, each_week};
 use std::fmt::Debug;
 use time::{Date, Duration, OffsetDateTime};
 
@@ -38,7 +38,7 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
             None,
         )
     } else {
-        let entry_minutes_by_day: Vec<Vec<i64>> = each_day(entries)
+        let entry_minutes_by_day: Vec<Vec<i64>> = each_day_in_week(entries, start)
             .filter(|(_, entries)| !entries.is_empty())
             .map(|(start, entries)| {
                 let start = start.midnight().assume_offset(local_offset());

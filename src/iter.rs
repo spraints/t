@@ -11,13 +11,20 @@ pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
     }
 }
 
-pub fn each_day(entries: Vec<Entry>) -> DaysIterator {
+fn each_day(entries: Vec<Entry>) -> DaysIterator {
     DaysIterator {
         entries,
         days: 1,
         last_date: None,
         next_index: 0,
         now: now(),
+    }
+}
+
+pub fn each_day_in_week(entries: Vec<Entry>, week_start: Date) -> WeekOfDaysIterator {
+    WeekOfDaysIterator {
+        days_iter: each_day(entries),
+        week_start,
     }
 }
 
@@ -84,6 +91,30 @@ impl DaysIterator {
     }
 }
 
+const SUNDAY_TO_SATURDAY: Duration = Duration::days(6);
+
+pub struct WeekOfDaysIterator {
+    days_iter: DaysIterator,
+    week_start: Date,
+}
+
+impl Iterator for WeekOfDaysIterator {
+    type Item = (Date, Vec<Entry>);
+
+    fn next(&mut self) -> std::option::Option<Self::Item> {
+        match self.days_iter.next() {
+            None => None,
+            Some((d, e)) => {
+                if d < self.week_start || d > (self.week_start + SUNDAY_TO_SATURDAY) {
+                    self.next()
+                } else {
+                    Some((d, e))
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::entry::mock_time::*;
@@ -95,7 +126,6 @@ mod tests {
 
     #[test]
     pub fn test_each_week_empty() {
-        //let entries = parse_entries(
         let mut i = super::each_week(vec![]);
         assert_eq!(None, i.next());
     }
@@ -248,6 +278,42 @@ mod tests {
         let mut i = super::each_week(entries.clone());
         assert_eq!(Some((date!(2020 - 01 - 12), expected_entries)), i.next());
         assert_eq!(None, i.next());
+        Ok(())
+    }
+
+    #[test]
+    fn test_each_day_in_week() -> TestRes {
+        let entries = parse_entries(
+            "2020-08-01 10:10,2020-08-01 11:10\n\
+             2020-08-02 10:10,2020-08-03 11:10\n\
+             2020-08-04 12:10,2020-08-04 11:10\n\
+             2020-08-05 10:10,2020-08-05 11:10\n\
+             2020-08-08 10:10,2020-08-11 11:10\n"
+                .as_bytes(),
+        )?;
+        let mut i = super::each_day_in_week(entries.clone(), date!(2020 - 08 - 03));
+        assert_eq!(
+            Some((date!(2020 - 08 - 03), vec![entries[1].clone()])),
+            i.next()
+        );
+        assert_eq!(
+            Some((date!(2020 - 08 - 04), vec![entries[2].clone()])),
+            i.next()
+        );
+        assert_eq!(
+            Some((date!(2020 - 08 - 05), vec![entries[3].clone()])),
+            i.next()
+        );
+        assert_eq!(Some((date!(2020 - 08 - 06), vec![])), i.next());
+        assert_eq!(Some((date!(2020 - 08 - 07), vec![])), i.next());
+        assert_eq!(
+            Some((date!(2020 - 08 - 08), vec![entries[4].clone()])),
+            i.next()
+        );
+        assert_eq!(
+            Some((date!(2020 - 08 - 09), vec![entries[4].clone()])),
+            i.next()
+        );
         Ok(())
     }
 }

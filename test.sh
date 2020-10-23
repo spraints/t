@@ -37,14 +37,20 @@ assert_out() {
 assert_diff() {
   local expected="$FIXTURES/$1"; shift
   shift # --
-  echo T "$@"
-  local actual="$($COMMAND "$@")"
-  if [ "$actual" != "$(cat "$expected")" ]; then
-    echo FAIL
-    echo "$actual" | diff -u "$expected" -
-    exit 1
+  if [ -e "$expected" ]; then
+    echo T "$@"
+    local actual="$($COMMAND "$@")"
+    if [ "$actual" != "$(cat "$expected")" ]; then
+      echo FAIL
+      echo "$actual" | diff -u "$expected" -
+      exit 1
+    fi
+    echo PASS
+  else
+    echo T "$@"
+    "$COMMAND" "$@" > "$expected"
+    echo RECORDED
   fi
-  echo PASS
 }
 
 assert_out "NOT working" -- status

@@ -1,5 +1,5 @@
 use crate::entry::{local_offset, Entry};
-use crate::iter::{each_day, each_week};
+use crate::iter::{each_day_in_week, each_week};
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -104,14 +104,8 @@ fn prepare_week(state: Option<State>, week_start: Date, entries: Vec<Entry>) -> 
 
 fn convert_week(start: Date, entries: Vec<Entry>) -> Week {
     let mut minutes = [0; 7];
-    for (day_start, entries) in each_day(entries) {
+    for (day_start, entries) in each_day_in_week(entries, start) {
         let i = (day_start - start).whole_days();
-        if i < 0 {
-            continue;
-        }
-        if i > 6 {
-            continue;
-        }
         minutes[i as usize] = minutes_on_day(day_start, entries);
     }
     Week { start, minutes }
