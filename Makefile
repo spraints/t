@@ -14,7 +14,7 @@ integration-ruby:
 	time env COMMAND=bin/t bash test.sh
 
 integration-rust: t
-	time env COMMAND="cargo run" EXTENDED=y bash test.sh
+	time env COMMAND="cargo run" bash test.sh
 
 t: target/debug/t
 

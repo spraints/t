@@ -36,22 +36,12 @@ enum TCommand {
     Path(NoArgs),
     #[options(help = "check for any formatting errors in t.csv")]
     Validate(NoArgs),
-    #[options(help = "undo the last addition to t.csv (t undo start|stop)")]
-    Undo(UndoArgs),
 }
 
 #[derive(Options)]
 struct StatusArgs {
     #[options(help = "also calculate the time worked this week so far")]
     with_week: bool,
-}
-
-#[derive(Options)]
-enum UndoArgs {
-    #[options(help = "undo a start")]
-    Start(NoArgs),
-    #[options(help = "undo a stop")]
-    Stop(NoArgs),
 }
 
 #[derive(Options)]
@@ -77,7 +67,6 @@ fn main() {
             //TCommand::Short(_) => cmd_short(),
             TCommand::Path(_) => cmd_path(),
             TCommand::Validate(_) => cmd_validate(),
-            TCommand::Undo(undo) => cmd_undo(undo),
         },
     };
 }
@@ -100,20 +89,6 @@ fn cmd_stop() {
     match stop_current_entry().unwrap() {
         Some(minutes) => println!("You just worked for {} minutes.", minutes),
         None => println!("You haven't started working yet!"),
-    };
-}
-
-fn cmd_undo(arg: UndoArgs) {
-    cmd_validate();
-    match arg {
-        UndoArgs::Start(_) => {
-            undo_start_in_current_entry().unwrap();
-            println!("You aren't started anymore.");
-        },
-        UndoArgs::Stop(_) => {
-            undo_stop_in_last_entry().unwrap();
-            println!("You are working again!");
-        },
     };
 }
 

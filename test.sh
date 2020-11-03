@@ -67,17 +67,6 @@ assert_out "You haven't started working yet" -- stop
 
 assert_out "NOT working" -- status
 
-if [ -n "${EXTENDED:-}" ]; then
-  assert_out "Cannot revert start, stop was last." -- undo start
-  assert_out "Reverted stop '" -- undo stop
-  assert_out "WORKING" -- status
-  assert_out "Cannot revert stop, start was last." -- undo stop
-  assert_out "Reverted start '" -- undo start
-  assert_out "NOT WORKING" -- status
-  assert_out "Data file is empty." -- undo stop
-  assert_out "Data file is empty." -- undo start
-fi
-
 fixt 2013-09.csv \
   assert_diff 2013-09.all -- all
 
