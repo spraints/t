@@ -152,9 +152,9 @@ fn show_bitbar_plugin(mut wrapper: &str) {
     let working = cmd_status(StatusArgs{with_week: true});
     println!("---");
     if working {
-        println!("❚❚\tt stop | bash=\"{}\" param1=--command=stop terminal=false", wrapper);
+        println!("❚❚\tt stop | bash=\"{}\" param1=--command=stop terminal=false refresh=true", wrapper);
     } else {
-        println!("▶\tt start | bash=\"{}\" param1=--command=start terminal=false", wrapper);
+        println!("▶\tt start | bash=\"{}\" param1=--command=start terminal=false refresh=true", wrapper);
     }
 }
 
