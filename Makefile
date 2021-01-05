@@ -32,5 +32,8 @@ bench: target/debug/bench-parse target/debug/bench-sum
 fmt:
 	rustfmt -l $(SRCS)
 
+clippy: fmt
+	cargo clippy
+
 target/debug/%: $(SRCS)
 	cargo build --bin $(notdir $@)
