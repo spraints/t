@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+set -o nounset
+
+ROOT=$(cd "$(dirname "$0")/.."; pwd -P)
+T_RUST="${ROOT}/target/release/t"
+
+if [ -x "$T_RUST" ] && [ $# -gt 0 ] && [ -z "${FORCE_RUBY:-}" ]; then
+  case "$1" in
+    start|stop|edit|status|today|week|all|days|path|validate)
+      exec "$T_RUST" "$@" ;;
+  esac
+fi
+
+cd "$ROOT"
+unset RBENV_VERSION
+exec bin/t "$@"
