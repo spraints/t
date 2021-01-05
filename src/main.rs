@@ -65,7 +65,9 @@ fn main() {
             TCommand::Start(_) => cmd_start(),
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
-            TCommand::Status(args) => {cmd_status(args);},
+            TCommand::Status(args) => {
+                cmd_status(args);
+            }
             TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
@@ -122,10 +124,7 @@ fn cmd_status(args: StatusArgs) -> bool {
     let entries = read_last_entries(100).expect("error parsing data file");
     let working = match entries.last() {
         None => false,
-        Some(e) => match e.stop {
-            None => true,
-            Some(_) => false,
-        },
+        Some(e) => e.stop.is_none(),
     };
     let status = if working { "WORKING" } else { "NOT working" };
     if args.with_week {
@@ -148,13 +147,21 @@ fn cmd_bitbar(args: BitBarArgs) {
 }
 
 fn show_bitbar_plugin(mut wrapper: &str) {
-    if wrapper == "" { wrapper = "t"; }
-    let working = cmd_status(StatusArgs{with_week: true});
+    if wrapper == "" {
+        wrapper = "t";
+    }
+    let working = cmd_status(StatusArgs { with_week: true });
     println!("---");
     if working {
-        println!("❚❚\tt stop | bash=\"{}\" param1=--command=stop terminal=false refresh=true", wrapper);
+        println!(
+            "❚❚\tt stop | bash=\"{}\" param1=--command=stop terminal=false refresh=true",
+            wrapper
+        );
     } else {
-        println!("▶\tt start | bash=\"{}\" param1=--command=start terminal=false refresh=true", wrapper);
+        println!(
+            "▶\tt start | bash=\"{}\" param1=--command=start terminal=false refresh=true",
+            wrapper
+        );
     }
 }
 
