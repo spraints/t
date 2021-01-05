@@ -1,0 +1,24 @@
+#!/bin/bash
+#/ Usage: script/t-compare COMMAND...
+
+set -e
+set -o nounset
+
+case "${1:-}" in
+  start|stop|edit)
+    echo "t-compare doesn't like $1"
+    exit 1 ;;
+esac
+
+root=$(dirname $(dirname $0))
+out_dir=$root/tmp
+ruby_out=$out_dir/t-compare.ruby
+rust_out=$out_dir/t-compare.rust
+
+make -C $root release >&/dev/null
+
+mkdir -p $out_dir
+$root/bin/t "$@" > $ruby_out
+$root/target/release/t "$@" > $rust_out
+
+exec diff -u $ruby_out $rust_out
