@@ -24,6 +24,8 @@ enum TCommand {
     Edit(NoArgs),
     #[options(help = "show current status")]
     Status(StatusArgs),
+    #[options(help = "generate output for bitbar")]
+    Bitbar(BitBarArgs),
     #[options(help = "show time worked today")]
     Today(NoArgs),
     #[options(help = "show time worked this week")]
@@ -45,6 +47,14 @@ struct StatusArgs {
 }
 
 #[derive(Options)]
+struct BitBarArgs {
+    #[options(help = "bitbar plugin script")]
+    wrapper: String,
+    #[options(help = "command to invoke")]
+    command: String,
+}
+
+#[derive(Options)]
 struct NoArgs {}
 
 fn main() {
@@ -55,7 +65,8 @@ fn main() {
             TCommand::Start(_) => cmd_start(),
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
-            TCommand::Status(args) => cmd_status(args),
+            TCommand::Status(args) => {cmd_status(args);},
+            TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
             TCommand::All(_) => cmd_all(),
@@ -107,21 +118,43 @@ fn cmd_edit() -> ! {
     std::process::exit(1)
 }
 
-fn cmd_status(args: StatusArgs) {
+fn cmd_status(args: StatusArgs) -> bool {
     let entries = read_last_entries(100).expect("error parsing data file");
-    let status = match entries.last() {
-        None => "NOT working",
+    let working = match entries.last() {
+        None => false,
         Some(e) => match e.stop {
-            None => "WORKING",
-            Some(_) => "NOT working",
+            None => true,
+            Some(_) => false,
         },
     };
+    let status = if working { "WORKING" } else { "NOT working" };
     if args.with_week {
         let (start_week, now) = extents::this_week();
         let minutes = minutes_between(&entries, start_week, now);
         println!("{} ({})", status, minutes);
     } else {
         println!("{}", status);
+    }
+    working
+}
+
+fn cmd_bitbar(args: BitBarArgs) {
+    match args.command.as_str() {
+        "" => show_bitbar_plugin(&args.wrapper),
+        "start" => cmd_start(),
+        "stop" => cmd_stop(),
+        _ => panic!("unrecognized command: {}", args.command),
+    };
+}
+
+fn show_bitbar_plugin(mut wrapper: &str) {
+    if wrapper == "" { wrapper = "t"; }
+    let working = cmd_status(StatusArgs{with_week: true});
+    println!("---");
+    if working {
+        println!("❚❚\tt stop | bash=\"{}\" param1=--command=stop terminal=false", wrapper);
+    } else {
+        println!("▶\tt start | bash=\"{}\" param1=--command=start terminal=false", wrapper);
     }
 }
 

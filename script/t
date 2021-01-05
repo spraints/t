@@ -8,7 +8,7 @@ T_RUST="${ROOT}/target/release/t"
 
 if [ -x "$T_RUST" ] && [ $# -gt 0 ] && [ -z "${FORCE_RUBY:-}" ]; then
   case "$1" in
-    start|stop|edit|status|today|week|all|days|path|validate)
+    start|stop|edit|status|bitbar|today|week|all|days|path|validate)
       exec "$T_RUST" "$@" ;;
   esac
 fi
