@@ -2,8 +2,12 @@ require 'time'
 
 module T
   class Data
-    def initialize(path)
-      @path = path
+    def initialize(path_or_entries)
+      if path_or_entries.is_a?(Array)
+        @entries = path_or_entries
+      else
+        @path = path_or_entries
+      end
     end
 
     def entries

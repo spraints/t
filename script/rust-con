@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -e
+set -o nounset
+
+image=t-dev
+
+docker build --rm \
+  --build-arg USERNAME=$USER \
+  --build-arg USER_UID=$(id -u) \
+  --build-arg USER_GID=$(id -g) \
+  -t $image \
+  images/dev
+
+r() {
+  docker run -it --rm \
+    -u $(id -u):$(id -g) \
+    -w /work \
+    -v $(pwd):/work \
+    -v ${image}-cargo:/usr/local/cargo \
+    $image \
+    "$@"
+}
+
+r /bin/bash

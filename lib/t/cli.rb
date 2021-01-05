@@ -62,7 +62,8 @@ module T
         exit 0
       when 'edit'
         require 't'
-        system ENV['EDITOR'], T::DATA_FILE
+        editor = ENV['EDITOR'] || 'vi'
+        system 'sh', '-c', editor + ' "$@"', editor, T::DATA_FILE
         exit 0
       when nil
         puts "A command (start, stop, edit) or query (status, today, week, all, punchcard, days, csv, svg, pto, short, path) is required."

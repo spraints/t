@@ -1,0 +1,17 @@
+[package]
+name = "t"
+version = "0.1.0"
+authors = ["spraints"]
+edition = "2018"
+default-run = "t"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gumdrop = "0.8.0"
+term_size = "0.3.2"
+time = "0.2.16"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
+tempfile = "3.1.0"
