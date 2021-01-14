@@ -112,7 +112,7 @@ fn cmd_edit() -> ! {
         "error: {}",
         std::process::Command::new("sh")
             .arg("-c")
-            .arg(format!("{} \"$@\"", editor))
+            .arg(format!("{} \"$@\"; t validate", editor))
             .arg(editor)
             .arg(path)
             .exec()
