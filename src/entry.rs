@@ -125,6 +125,40 @@ impl Entry {
         self.stop.is_some()
     }
 
+    pub fn includes_year(&self, year: i32) -> bool {
+        if self.start.year() > year {
+            return false;
+        }
+        if let Some(stop) = &self.stop {
+            if stop.year() < year {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn includes_year_month(&self, year: i32, month: u8) -> bool {
+        match self.start.year() {
+            y if y > year => return false,
+            y if y == year => match self.start.month() {
+                m if m > month => return false,
+                _ => (),
+            },
+            _ => (),
+        };
+        if let Some(stop) = &self.stop {
+            match stop.year() {
+                y if y < year => return false,
+                y if y == year => match stop.month() {
+                    m if m < month => return false,
+                    _ => (),
+                },
+                _ => (),
+            };
+        }
+        true
+    }
+
     pub fn is_valid_after(&self, other: &Option<Entry>) -> Result<(), String> {
         if let Some(stop) = &self.stop {
             if self.start.wrapped > stop.wrapped {
@@ -241,6 +275,14 @@ impl Time {
                 implied_tz: false,
             },
         }
+    }
+
+    fn year(&self) -> i32 {
+        self.wrapped.year()
+    }
+
+    fn month(&self) -> u8 {
+        self.wrapped.month()
     }
 }
 

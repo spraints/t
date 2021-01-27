@@ -3,6 +3,7 @@ use std::os::unix::process::CommandExt;
 use t::entry::Entry;
 use t::extents;
 use t::file::*;
+use t::filter::filter_entries;
 use t::report;
 use time::{Duration, OffsetDateTime};
 
@@ -33,7 +34,7 @@ enum TCommand {
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
     #[options(help = "show a table of time worked per day")]
-    Days(NoArgs),
+    Days(DaysArgs),
     #[options(help = "show the path to t.csv")]
     Path(NoArgs),
     #[options(help = "check for any formatting errors in t.csv")]
@@ -55,6 +56,12 @@ struct BitBarArgs {
 }
 
 #[derive(Options)]
+struct DaysArgs {
+    #[options(free)]
+    filters: Vec<String>,
+}
+
+#[derive(Options)]
 struct NoArgs {}
 
 fn main() {
@@ -73,7 +80,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::All(_) => cmd_all(),
             //TCommand::Punchcard(_) => cmd_punchcard(),
-            TCommand::Days(_) => cmd_days(),
+            TCommand::Days(args) => cmd_days(args),
             //TCommand::CSV(_) => cmd_csv(),
             //TCommand::SVG(_) => cmd_svg(),
             //TCommand::PTO(_) => cmd_pto(),
@@ -222,8 +229,9 @@ let width = match term_size::dimensions() {
 };
 */
 
-fn cmd_days() {
+fn cmd_days(args: DaysArgs) {
     let entries = read_entries().expect("error parsing data file");
+    let entries = filter_entries(entries, args.filters).expect("unusable filter");
     print!("{}", report::days::prepare(entries));
     print_week_legend();
 }
