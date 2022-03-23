@@ -9,7 +9,8 @@ const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
 
 #[cfg(test)]
 mod tests {
-    use crate::entry::{mock_time::*, Entry};
+    use crate::entry::Entry;
+    use crate::timesource::mock_time::set_mock_time;
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;

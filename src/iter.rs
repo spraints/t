@@ -1,4 +1,5 @@
-use crate::entry::{now, Entry};
+use crate::entry::Entry;
+use crate::timesource::now;
 use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
 pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
@@ -117,8 +118,8 @@ impl Iterator for WeekOfDaysIterator {
 
 #[cfg(test)]
 mod tests {
-    use crate::entry::mock_time::*;
     use crate::parser::parse_entries;
+    use crate::timesource::mock_time::set_mock_time;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 

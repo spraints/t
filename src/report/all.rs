@@ -1,5 +1,6 @@
-use crate::entry::{local_offset, Entry};
+use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
+use crate::timesource::local_offset;
 use std::fmt::Debug;
 use time::{Date, Duration, OffsetDateTime};
 

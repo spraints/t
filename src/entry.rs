@@ -1,3 +1,4 @@
+use crate::timesource::{local_offset, now};
 use std::clone::Clone;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -9,78 +10,10 @@ pub struct Entry {
     pub stop: Option<Time>,
 }
 
-#[cfg(not(test))]
-pub mod real_time {
-    use std::cell::RefCell;
-    use time::{OffsetDateTime, UtcOffset};
-
-    thread_local! {
-        static LOCAL_OFFSET: RefCell<Option<UtcOffset>> = RefCell::new(None);
-    }
-
-    pub fn now() -> OffsetDateTime {
-        OffsetDateTime::now_local()
-    }
-
-    pub fn local_offset() -> UtcOffset {
-        LOCAL_OFFSET.with(|cell| {
-            let val = cell.borrow().as_ref().cloned();
-            match val {
-                Some(ret) => ret,
-                None => {
-                    let ret = UtcOffset::current_local_offset();
-                    *cell.borrow_mut() = Some(ret);
-                    ret
-                }
-            }
-        })
-    }
-}
-
 // ok for test and prod.
 fn explicit_offset(minutes: i16) -> time::UtcOffset {
     time::UtcOffset::minutes(minutes)
 }
-
-#[cfg(test)]
-pub mod mock_time {
-    // Adapted from https://blog.iany.me/2019/03/how-to-mock-time-in-rust-tests-and-cargo-gotchas-we-met/
-
-    use std::cell::RefCell;
-    use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-
-    thread_local! {
-        static MOCK_TIME: RefCell<Option<OffsetDateTime>> = RefCell::new(None);
-    }
-
-    pub fn now() -> OffsetDateTime {
-        MOCK_TIME.with(|cell| {
-            cell.borrow()
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(OffsetDateTime::now_local)
-        })
-    }
-
-    pub fn local_offset() -> UtcOffset {
-        now().offset()
-    }
-
-    pub fn set_mock_time(date: Date, time: Time, offset: UtcOffset) {
-        MOCK_TIME.with(|cell| {
-            *cell.borrow_mut() = Some(PrimitiveDateTime::new(date, time).assume_offset(offset))
-        });
-    }
-
-    pub fn clear_mock_time() {
-        MOCK_TIME.with(|cell| *cell.borrow_mut() = None);
-    }
-}
-
-#[cfg(test)]
-pub use mock_time::{local_offset, now};
-#[cfg(not(test))]
-pub use real_time::{local_offset, now};
 
 impl Entry {
     pub fn start() -> Self {
@@ -299,7 +232,8 @@ impl Display for Time {
 
 #[cfg(test)]
 mod tests {
-    use super::{mock_time::*, Entry, Time};
+    use super::{Entry, Time};
+    use crate::timesource::mock_time::set_mock_time;
     use time::{date, offset, time, PrimitiveDateTime};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;

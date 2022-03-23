@@ -1,5 +1,6 @@
-use crate::entry::{local_offset, Entry};
+use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
+use crate::timesource::local_offset;
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -137,9 +138,9 @@ fn finish(state: Option<State>) -> Report {
 #[cfg(test)]
 mod tests {
     use super::{prepare, Month, Report, Week, Year};
-    use crate::entry::mock_time::*;
     use crate::entry::Entry;
     use crate::parser::parse_entries;
+    use crate::timesource::mock_time::set_mock_time;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
