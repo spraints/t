@@ -1,6 +1,6 @@
 use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
-use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
+use crate::timesource::TimeSource;
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -33,11 +33,7 @@ struct State {
     month: Month,
 }
 
-pub fn prepare(entries: Vec<Entry>) -> Report {
-    prepare_ts(entries, &DefaultTimeSource)
-}
-
-fn prepare_ts<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
+pub fn prepare<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
     let mut state = None;
     for (week_start, entries) in each_week(entries, ts) {
         state = Some(prepare_week(state, week_start, entries, ts));
@@ -146,10 +142,11 @@ fn finish(state: Option<State>) -> Report {
 
 #[cfg(test)]
 mod tests {
-    use super::{prepare, prepare_ts, Month, Report, Week, Year};
+    use super::{prepare, Month, Report, Week, Year};
     use crate::entry::Entry;
     use crate::parser::parse_entries;
     use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
+    use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
@@ -158,7 +155,10 @@ mod tests {
     #[test]
     fn test_empty() {
         let entries: Vec<Entry> = vec![];
-        assert_eq!(prepare(entries), Report { years: vec![] });
+        assert_eq!(
+            prepare(entries, &DefaultTimeSource),
+            Report { years: vec![] }
+        );
     }
 
     #[test]
@@ -166,7 +166,7 @@ mod tests {
         let input = "2013-09-04 11:04,2013-09-04 12:24\n";
         let entries = parse_entries(input.as_bytes())?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -189,7 +189,7 @@ mod tests {
         let input = "2013-09-04 11:04 -0400";
         let entries = parse_entries(input.as_bytes())?;
         assert_eq!(
-            prepare_ts(entries, &MockTimeSource),
+            prepare(entries, &MockTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -211,7 +211,7 @@ mod tests {
         let input = "2013-11-16 00:00,2013-11-17 09:20";
         let entries = parse_entries(input.as_bytes())?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -249,7 +249,7 @@ mod tests {
                      2016-01-05 11:39,2016-01-05 11:49\n";
         let entries = parse_entries(input.as_bytes())?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![
                     Year {

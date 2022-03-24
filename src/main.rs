@@ -5,6 +5,7 @@ use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
 use t::report;
+use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
@@ -63,6 +64,8 @@ struct DaysArgs {
 
 #[derive(Options)]
 struct NoArgs {}
+
+static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
 
 fn main() {
     let opts = MainOptions::parse_args_default_or_exit();
@@ -232,7 +235,7 @@ let width = match term_size::dimensions() {
 fn cmd_days(args: DaysArgs) {
     let entries = read_entries().expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
-    print!("{}", report::days::prepare(entries));
+    print!("{}", report::days::prepare(entries, &TIME_SOURCE));
     print_week_legend();
 }
 
