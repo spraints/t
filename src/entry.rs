@@ -1,4 +1,4 @@
-use crate::timesource::{local_offset, now, real_time::DefaultTimeSource, TimeSource};
+use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
 use std::clone::Clone;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -48,9 +48,16 @@ impl Entry {
     }
 
     pub fn stop_date(&self) -> Date {
+        match self.try_stop_date() {
+            None => DefaultTimeSource.now().date(),
+            Some(d) => d,
+        }
+    }
+
+    pub fn try_stop_date(&self) -> Option<Date> {
         match &self.stop {
-            None => now().date(),
-            Some(t) => t.wrapped.date(),
+            None => None,
+            Some(t) => Some(t.wrapped.date()),
         }
     }
 
@@ -195,17 +202,46 @@ impl Time {
         minute: u8,
         utc_offset: Option<i16>,
     ) -> Result<Self, Box<dyn Error>> {
+        Self::new_ts(
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            utc_offset,
+            &DefaultTimeSource,
+        )
+    }
+
+    pub fn new_ts<TS: TimeSource>(
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        utc_offset: Option<i16>,
+        ts: &TS,
+    ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
         let offset = utc_offset.map(explicit_offset);
-        Ok(Self::from_dto(date, time, offset))
+        Ok(Self::from_dto_ts(date, time, offset, ts))
     }
 
     pub fn from_dto(date: time::Date, time: time::Time, offset: Option<time::UtcOffset>) -> Self {
+        Self::from_dto_ts(date, time, offset, &DefaultTimeSource)
+    }
+
+    pub fn from_dto_ts<TS: TimeSource>(
+        date: time::Date,
+        time: time::Time,
+        offset: Option<time::UtcOffset>,
+        ts: &TS,
+    ) -> Self {
         let dt = PrimitiveDateTime::new(date, time);
         match offset {
             None => {
-                let off = local_offset();
+                let off = ts.local_offset();
                 Self {
                     wrapped: dt.assume_offset(off),
                     implied_tz: true,
@@ -312,7 +348,7 @@ mod tests {
     fn test_minutes_no_stop_no_tz() -> TestRes {
         set_mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None)?,
+            start: Time::new_ts(2020, 6, 20, 1, 7, None, &MockTimeSource)?,
             stop: None,
         };
         assert_eq!(48, entry.minutes_ts(&MockTimeSource));

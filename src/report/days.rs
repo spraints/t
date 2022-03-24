@@ -1,6 +1,6 @@
 use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week_ts};
-use crate::timesource::{local_offset, real_time::DefaultTimeSource, TimeSource};
+use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -40,13 +40,18 @@ pub fn prepare(entries: Vec<Entry>) -> Report {
 fn prepare_ts<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
     let mut state = None;
     for (week_start, entries) in each_week_ts(entries, ts) {
-        state = Some(prepare_week(state, week_start, entries));
+        state = Some(prepare_week(state, week_start, entries, ts));
     }
     finish(state)
 }
 
-fn prepare_week(state: Option<State>, week_start: Date, entries: Vec<Entry>) -> State {
-    let week = convert_week(week_start, entries);
+fn prepare_week<TS: TimeSource>(
+    state: Option<State>,
+    week_start: Date,
+    entries: Vec<Entry>,
+    ts: &TS,
+) -> State {
+    let week = convert_week(week_start, entries, ts);
     match state {
         None => {
             let month = Month {
@@ -107,18 +112,18 @@ fn prepare_week(state: Option<State>, week_start: Date, entries: Vec<Entry>) -> 
     }
 }
 
-fn convert_week(start: Date, entries: Vec<Entry>) -> Week {
+fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> Week {
     let mut minutes = [0; 7];
     for (day_start, entries) in each_day_in_week(entries, start) {
         let i = (day_start - start).whole_days();
-        minutes[i as usize] = minutes_on_day(day_start, entries);
+        minutes[i as usize] = minutes_on_day(day_start, entries, ts);
     }
     Week { start, minutes }
 }
 
-fn minutes_on_day(start: Date, entries: Vec<Entry>) -> i64 {
-    let stop = start.next_day().midnight().assume_offset(local_offset());
-    let start = start.midnight().assume_offset(local_offset());
+fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> i64 {
+    let stop = start.next_day().midnight().assume_offset(ts.local_offset());
+    let start = start.midnight().assume_offset(ts.local_offset());
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))

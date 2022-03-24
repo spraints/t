@@ -1,6 +1,6 @@
 use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
-use crate::timesource::local_offset;
+use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
 use std::fmt::Debug;
 use time::{Date, Duration, OffsetDateTime};
 
@@ -42,7 +42,9 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
         let entry_minutes_by_day: Vec<Vec<i64>> = each_day_in_week(entries, start)
             .filter(|(_, entries)| !entries.is_empty())
             .map(|(start, entries)| {
-                let start = start.midnight().assume_offset(local_offset());
+                let start = start
+                    .midnight()
+                    .assume_offset(DefaultTimeSource.local_offset());
                 let stop = start + ONE_DAY;
                 entries
                     .into_iter()
@@ -114,8 +116,12 @@ fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTim
 fn minutes_between_days(entries: &[Entry], start: Date, stop: Date) -> i64 {
     minutes_between(
         entries,
-        start.midnight().assume_offset(local_offset()),
-        stop.next_day().midnight().assume_offset(local_offset()),
+        start
+            .midnight()
+            .assume_offset(DefaultTimeSource.local_offset()),
+        stop.next_day()
+            .midnight()
+            .assume_offset(DefaultTimeSource.local_offset()),
     )
 }
 

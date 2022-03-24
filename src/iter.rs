@@ -1,5 +1,5 @@
 use crate::entry::Entry;
-use crate::timesource::{now, real_time::DefaultTimeSource, TimeSource};
+use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
 use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
 pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
@@ -22,7 +22,7 @@ fn each_day(entries: Vec<Entry>) -> DaysIterator {
         days: 1,
         last_date: None,
         next_index: 0,
-        now: now(),
+        now: DefaultTimeSource.now(),
     }
 }
 
@@ -60,7 +60,11 @@ impl Iterator for DaysIterator {
                     break;
                 } else {
                     entries.push(entry.clone().finish_if_not(self.now));
-                    if entry.stop_date() >= next_date {
+                    let st = match entry.try_stop_date() {
+                        None => self.now.date(),
+                        Some(d) => d,
+                    };
+                    if st >= next_date {
                         break;
                     }
                     self.next_index += 1;
