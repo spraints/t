@@ -156,6 +156,11 @@ pub struct Time {
     implied_tz: bool,
 }
 
+enum TZ {
+    Known(time::UtcOffset),
+    Implied(time::UtcOffset),
+}
+
 impl Time {
     pub fn at(wrapped: OffsetDateTime) -> Self {
         Self {
@@ -175,27 +180,22 @@ impl Time {
     ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
-        let offset = utc_offset.map(time::UtcOffset::minutes);
-        Ok(Self::from_dto(date, time, offset, ts))
+        let tz = match utc_offset {
+            None => TZ::Implied(ts.local_offset()),
+            Some(minutes) => TZ::Known(time::UtcOffset::minutes(minutes)),
+        };
+        Ok(Self::from_dto(date, time, tz))
     }
 
-    pub fn from_dto<TS: TimeSource>(
-        date: time::Date,
-        time: time::Time,
-        offset: Option<time::UtcOffset>,
-        ts: &TS,
-    ) -> Self {
+    fn from_dto(date: time::Date, time: time::Time, tz: TZ) -> Self {
         let dt = PrimitiveDateTime::new(date, time);
-        match offset {
-            None => {
-                let off = ts.local_offset();
-                Self {
-                    wrapped: dt.assume_offset(off),
-                    implied_tz: true,
-                }
-            }
-            Some(tz) => Self {
-                wrapped: dt.assume_offset(tz),
+        match tz {
+            TZ::Implied(off) => Self {
+                wrapped: dt.assume_offset(off),
+                implied_tz: true,
+            },
+            TZ::Known(off) => Self {
+                wrapped: dt.assume_offset(off),
                 implied_tz: false,
             },
         }
