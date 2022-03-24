@@ -16,12 +16,9 @@ impl std::fmt::Display for ParseError {
 
 impl Error for ParseError {}
 
-pub fn parse_entries<R: Read, TS: TimeSource + Clone>(
-    r: R,
-    ts: &TS,
-) -> Result<Vec<Entry>, Box<dyn Error>> {
+pub fn parse_entries<R: Read, TS: TimeSource>(r: R, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     let r = BufReader::new(r);
-    let mut parser = Parser::new(r, ts.clone());
+    let mut parser = Parser::new(r, ts);
     let mut res = vec![];
     loop {
         match parser.parse_entry()? {
@@ -32,11 +29,11 @@ pub fn parse_entries<R: Read, TS: TimeSource + Clone>(
     Ok(res)
 }
 
-pub fn parse_entry<R: Read, TS: TimeSource + Clone>(
+pub fn parse_entry<R: Read, TS: TimeSource>(
     r: R,
     ts: &TS,
 ) -> Result<(Option<Entry>, R), Box<dyn Error>> {
-    let mut parser = Parser::new(r, ts.clone());
+    let mut parser = Parser::new(r, ts);
     let entry = parser.parse_entry()?;
     Ok((entry, parser.reader))
 }
@@ -48,18 +45,18 @@ pub fn write_entries(w: &mut impl Write, entries: &[Entry]) -> Result<(), Box<dy
     Ok(())
 }
 
-struct Parser<R, TS> {
+struct Parser<R> {
     reader: R,
-    ts: TS,
+    tz: time::UtcOffset,
     line: usize,
     col: usize,
 }
 
-impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
-    fn new(r: R, ts: TS) -> Parser<R, TS> {
+impl<R: Read> Parser<R> {
+    fn new<TS: TimeSource>(r: R, ts: &TS) -> Parser<R> {
         Parser {
             reader: r,
-            ts,
+            tz: ts.local_offset(),
             line: 1,
             col: 0,
         }
@@ -144,7 +141,7 @@ impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
     }
 
     fn implied_tz(&self) -> TZ {
-        TZ::Implied(self.ts.local_offset())
+        TZ::Implied(self.tz)
     }
 
     fn read_year(&mut self) -> Result<Option<u16>, Box<dyn Error>> {

@@ -382,11 +382,11 @@ pub fn t_data_file() -> Result<String, std::env::VarError> {
 }
 
 // If there isn't a pending entry, start a new one.
-pub fn start_new_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+pub fn start_new_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
     _start_new_entry(t_data_file()?, ts)
 }
 
-fn _start_new_entry<P: AsRef<Path>, TS: TimeSource + Clone>(
+fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
     t_data_file: P,
     ts: &TS,
 ) -> Result<Option<i64>, Box<dyn Error>> {
@@ -402,11 +402,11 @@ fn _start_new_entry<P: AsRef<Path>, TS: TimeSource + Clone>(
 }
 
 // If there is a pending entry, finish it.
-pub fn stop_current_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
     _stop_current_entry(t_data_file()?, ts)
 }
 
-fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource + Clone>(
+fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
     t_data_file: P,
     ts: &TS,
 ) -> Result<Option<i64>, Box<dyn Error>> {
@@ -430,7 +430,7 @@ type ReadResult = (File, Option<Entry>, u64, u64);
 
 // Get the last entry from the file, along with its start and stop
 // positions.
-fn read_for_update<P: AsRef<Path>, TS: TimeSource + Clone>(
+fn read_for_update<P: AsRef<Path>, TS: TimeSource>(
     t_data_file: P,
     ts: &TS,
 ) -> Result<ReadResult, Box<dyn Error>> {
@@ -460,18 +460,15 @@ fn read_for_update<P: AsRef<Path>, TS: TimeSource + Clone>(
     Ok((f, last_entry, start_pos, stop_pos))
 }
 
-pub fn read_entries<TS: TimeSource + Clone>(ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+pub fn read_entries<TS: TimeSource>(ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     t_open(t_data_file()?)?.read_entries(ts)
 }
 
-pub fn read_last_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
+pub fn read_last_entry<TS: TimeSource>(ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
     t_open(t_data_file()?)?.read_last_entry(ts)
 }
 
-pub fn read_last_entries<TS: TimeSource + Clone>(
-    n: u64,
-    ts: &TS,
-) -> Result<Vec<Entry>, Box<dyn Error>> {
+pub fn read_last_entries<TS: TimeSource>(n: u64, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     t_open(t_data_file()?)?.read_last_entries(n, ts)
 }
 
@@ -490,21 +487,18 @@ struct TFile {
 }
 
 impl TFile {
-    fn read_entries<TS: TimeSource + Clone>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+    fn read_entries<TS: TimeSource>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
             Some(f) => parse_entries(f, ts),
             None => Ok(vec![]),
         }
     }
 
-    fn read_last_entry<TS: TimeSource + Clone>(
-        self,
-        ts: &TS,
-    ) -> Result<Option<Entry>, Box<dyn Error>> {
+    fn read_last_entry<TS: TimeSource>(self, ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
         Ok(self.read_last_entries(1, ts)?.into_iter().last())
     }
 
-    fn read_last_entries<TS: TimeSource + Clone>(
+    fn read_last_entries<TS: TimeSource>(
         self,
         n: u64,
         ts: &TS,
