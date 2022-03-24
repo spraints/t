@@ -1,4 +1,4 @@
-.PHONY: test bench fmt release
+.PHONY: test bench release clippy
 
 SRCS = $(shell find src -name '*.rs')
 
@@ -29,10 +29,7 @@ target/release/t: $(SRCS) Cargo.toml Cargo.lock
 bench: target/debug/bench-parse target/debug/bench-sum
 	bash bench.sh
 
-fmt:
-	rustfmt -l $(SRCS)
-
-clippy: fmt
+clippy:
 	cargo clippy
 
 target/debug/%: $(SRCS)
