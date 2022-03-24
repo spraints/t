@@ -26,7 +26,7 @@ pub mod mock_time {
 
     impl super::TimeSource for MockTimeSource {
         fn now(&self) -> OffsetDateTime {
-            self.dt.clone()
+            self.dt
         }
 
         fn local_offset(&self) -> UtcOffset {
