@@ -1,12 +1,7 @@
 pub mod real_time {
-    use std::cell::RefCell;
     use time::{OffsetDateTime, UtcOffset};
 
-    thread_local! {
-        static LOCAL_OFFSET: RefCell<Option<UtcOffset>> = RefCell::new(None);
-    }
-
-    #[derive(Default, Clone)]
+    #[derive(Clone)]
     pub struct DefaultTimeSource;
 
     impl super::TimeSource for DefaultTimeSource {
@@ -15,17 +10,7 @@ pub mod real_time {
         }
 
         fn local_offset(&self) -> UtcOffset {
-            LOCAL_OFFSET.with(|cell| {
-                let val = cell.borrow().as_ref().cloned();
-                match val {
-                    Some(ret) => ret,
-                    None => {
-                        let ret = UtcOffset::current_local_offset();
-                        *cell.borrow_mut() = Some(ret);
-                        ret
-                    }
-                }
-            })
+            UtcOffset::current_local_offset()
         }
     }
 }
