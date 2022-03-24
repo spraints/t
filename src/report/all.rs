@@ -22,7 +22,7 @@ pub struct AllAnalysis<T: PartialEq> {
 }
 
 pub fn calc<T: PartialEq + Copy>(entries: Vec<Entry>, sparks: &[T]) -> Vec<All<T>> {
-    each_week(entries)
+    each_week(entries, &DefaultTimeSource)
         .map(|(start, entries)| calc_all_week(start, entries, sparks))
         .collect()
 }
@@ -39,19 +39,20 @@ fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: 
             None,
         )
     } else {
-        let entry_minutes_by_day: Vec<Vec<i64>> = each_day_in_week(entries, start)
-            .filter(|(_, entries)| !entries.is_empty())
-            .map(|(start, entries)| {
-                let start = start
-                    .midnight()
-                    .assume_offset(DefaultTimeSource.local_offset());
-                let stop = start + ONE_DAY;
-                entries
-                    .into_iter()
-                    .map(|entry| entry.minutes_between(start, stop))
-                    .collect()
-            })
-            .collect();
+        let entry_minutes_by_day: Vec<Vec<i64>> =
+            each_day_in_week(entries, start, &DefaultTimeSource)
+                .filter(|(_, entries)| !entries.is_empty())
+                .map(|(start, entries)| {
+                    let start = start
+                        .midnight()
+                        .assume_offset(DefaultTimeSource.local_offset());
+                    let stop = start + ONE_DAY;
+                    entries
+                        .into_iter()
+                        .map(|entry| entry.minutes_between(start, stop))
+                        .collect()
+                })
+                .collect();
         let entry_minutes: Vec<i64> = entry_minutes_by_day
             .iter()
             .flat_map(|entries| entries.iter().copied())

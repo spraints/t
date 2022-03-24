@@ -1,5 +1,5 @@
 use crate::entry::Entry;
-use crate::iter::{each_day_in_week, each_week_ts};
+use crate::iter::{each_day_in_week, each_week};
 use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
@@ -39,7 +39,7 @@ pub fn prepare(entries: Vec<Entry>) -> Report {
 
 fn prepare_ts<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
     let mut state = None;
-    for (week_start, entries) in each_week_ts(entries, ts) {
+    for (week_start, entries) in each_week(entries, ts) {
         state = Some(prepare_week(state, week_start, entries, ts));
     }
     finish(state)
@@ -114,7 +114,7 @@ fn prepare_week<TS: TimeSource>(
 
 fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> Week {
     let mut minutes = [0; 7];
-    for (day_start, entries) in each_day_in_week(entries, start) {
+    for (day_start, entries) in each_day_in_week(entries, start, ts) {
         let i = (day_start - start).whole_days();
         minutes[i as usize] = minutes_on_day(day_start, entries, ts);
     }
