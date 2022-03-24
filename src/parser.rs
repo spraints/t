@@ -18,7 +18,7 @@ impl Error for ParseError {}
 
 pub fn parse_entries<R: Read, TS: TimeSource>(r: R, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     let r = BufReader::new(r);
-    let mut parser = Parser::new(r, ts);
+    let mut parser = Parser::new(r, ts.local_offset());
     let mut res = vec![];
     loop {
         match parser.parse_entry()? {
@@ -33,7 +33,7 @@ pub fn parse_entry<R: Read, TS: TimeSource>(
     r: R,
     ts: &TS,
 ) -> Result<(Option<Entry>, R), Box<dyn Error>> {
-    let mut parser = Parser::new(r, ts);
+    let mut parser = Parser::new(r, ts.local_offset());
     let entry = parser.parse_entry()?;
     Ok((entry, parser.reader))
 }
@@ -47,16 +47,16 @@ pub fn write_entries(w: &mut impl Write, entries: &[Entry]) -> Result<(), Box<dy
 
 struct Parser<R> {
     reader: R,
-    tz: time::UtcOffset,
+    default_tz: time::UtcOffset,
     line: usize,
     col: usize,
 }
 
 impl<R: Read> Parser<R> {
-    fn new<TS: TimeSource>(r: R, ts: &TS) -> Parser<R> {
+    fn new(r: R, default_tz: time::UtcOffset) -> Parser<R> {
         Parser {
             reader: r,
-            tz: ts.local_offset(),
+            default_tz,
             line: 1,
             col: 0,
         }
@@ -141,7 +141,7 @@ impl<R: Read> Parser<R> {
     }
 
     fn implied_tz(&self) -> TZ {
-        TZ::Implied(self.tz)
+        TZ::Implied(self.default_tz)
     }
 
     fn read_year(&mut self) -> Result<Option<u16>, Box<dyn Error>> {
