@@ -1,4 +1,4 @@
-use crate::entry::{Entry, Time};
+use crate::entry::{Entry, Time, TZ};
 use crate::timesource::TimeSource;
 use std::error::Error;
 use std::io::{self, BufReader, Read, Write};
@@ -91,11 +91,19 @@ impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
                 let hour = self.read_number(10)? as u8;
                 self.read_expected(b':')?;
                 let minute = self.read_number(10)? as u8;
-                let ts = self.ts.clone();
-                let res = |tz| Time::new(year, month, day, hour, minute, tz, &ts);
+
                 match self.read()? {
-                    None | Some(b'\n') => Ok(Some((res(None)?, true))),
-                    Some(b',') => Ok(Some((res(None)?, false))),
+                    // EOF or EOL.
+                    None | Some(b'\n') => Ok(Some((
+                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        true,
+                    ))),
+                    // End of current entry.
+                    Some(b',') => Ok(Some((
+                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        false,
+                    ))),
+                    // TZ follows the space.
                     Some(b' ') => {
                         let sign: i16 = match self.read()? {
                             Some(b'-') => -1,
@@ -109,15 +117,23 @@ impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
                         };
                         let hr_off = self.read_number(10)? as i16;
                         let min_off = self.read_number(10)? as i16;
-                        let res = res(Some(sign * ((hr_off * 60) + min_off)))?;
+
+                        let total_min_off = sign * ((hr_off * 60) + min_off);
+                        let tz = TZ::Known(time::UtcOffset::minutes(total_min_off));
+                        let res = Time::new(year, month, day, hour, minute, tz)?;
+
                         match self.read()? {
+                            // EOF or EOL.
                             None | Some(b'\n') => Ok(Some((res, true))),
+                            // End of current entry.
                             Some(b',') => Ok(Some((res, false))),
+                            // Anything else.
                             Some(x) => {
                                 Err(self.error(format!("expected '\\n' but got '{}'", x as char)))
                             }
                         }
                     }
+                    // Anything else.
                     Some(x) => Err(self.error(format!(
                         "expected newline, comma, or space, but got '{}'",
                         x as char
@@ -125,6 +141,10 @@ impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
                 }
             }
         }
+    }
+
+    fn implied_tz(&self) -> TZ {
+        TZ::Implied(self.ts.local_offset())
     }
 
     fn read_year(&mut self) -> Result<Option<u16>, Box<dyn Error>> {
@@ -203,7 +223,7 @@ impl<R: Read, TS: TimeSource + Clone> Parser<R, TS> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_entries, write_entries, Entry, Time};
+    use super::{parse_entries, write_entries, Entry, Time, TZ};
     use crate::timesource::real_time::DefaultTimeSource;
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
@@ -216,7 +236,8 @@ mod tests {
         minute: u8,
         offset: Option<i16>,
     ) -> Result<Time, Box<dyn std::error::Error>> {
-        Time::new(year, month, day, hour, minute, offset, &DefaultTimeSource)
+        let tz = TZ::from(offset, &DefaultTimeSource);
+        Time::new(year, month, day, hour, minute, tz)
     }
 
     #[test]

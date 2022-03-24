@@ -156,9 +156,18 @@ pub struct Time {
     implied_tz: bool,
 }
 
-enum TZ {
+pub enum TZ {
     Known(time::UtcOffset),
     Implied(time::UtcOffset),
+}
+
+impl TZ {
+    pub fn from<TS: TimeSource>(utc_offset: Option<i16>, ts: &TS) -> Self {
+        match utc_offset {
+            None => Self::Implied(ts.local_offset()),
+            Some(minutes) => Self::Known(time::UtcOffset::minutes(minutes)),
+        }
+    }
 }
 
 impl Time {
@@ -169,21 +178,16 @@ impl Time {
         }
     }
 
-    pub fn new<TS: TimeSource>(
+    pub fn new(
         year: u16,
         month: u8,
         day: u8,
         hour: u8,
         minute: u8,
-        utc_offset: Option<i16>,
-        ts: &TS,
+        tz: TZ,
     ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
-        let tz = match utc_offset {
-            None => TZ::Implied(ts.local_offset()),
-            Some(minutes) => TZ::Known(time::UtcOffset::minutes(minutes)),
-        };
         Ok(Self::from_dto(date, time, tz))
     }
 
@@ -223,7 +227,7 @@ impl Display for Time {
 
 #[cfg(test)]
 mod tests {
-    use super::{Entry, Time};
+    use super::{Entry, Time, TZ};
     use crate::timesource::real_time::DefaultTimeSource;
     use crate::timesource::{mock_time::mock_time, TimeSource};
     use time::{date, offset, time, PrimitiveDateTime};
@@ -232,14 +236,14 @@ mod tests {
 
     #[test]
     fn test_time_format_no_tz() -> TestRes {
-        let time = Time::new(2020, 6, 20, 1, 7, None, &DefaultTimeSource)?;
+        let time = Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?;
         assert_eq!("2020-06-20 01:07", format!("{}", time));
         Ok(())
     }
 
     #[test]
     fn test_time_format_with_tz() -> TestRes {
-        let time = Time::new(2020, 6, 20, 1, 7, Some(-123), &DefaultTimeSource)?;
+        let time = Time::new(2020, 6, 20, 1, 7, TZ::from(Some(-123), &DefaultTimeSource))?;
         assert_eq!("2020-06-20 01:07 -0203", format!("{}", time));
         Ok(())
     }
@@ -247,7 +251,7 @@ mod tests {
     #[test]
     fn test_entry_format_with_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None, &DefaultTimeSource)?,
+            start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
             stop: None,
         };
         assert_eq!("2020-06-20 01:07\n", format!("{}", entry));
@@ -257,8 +261,15 @@ mod tests {
     #[test]
     fn test_entry_format_with_start_and_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None, &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 1, 8, None, &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                1,
+                8,
+                TZ::from(None, &DefaultTimeSource),
+            )?),
         };
         assert_eq!("2020-06-20 01:07,2020-06-20 01:08\n", format!("{}", entry));
         Ok(())
@@ -274,8 +285,15 @@ mod tests {
     #[test]
     fn test_minutes() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None, &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 1, 8, None, &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                1,
+                8,
+                TZ::from(None, &DefaultTimeSource),
+            )?),
         };
         assert_eq!(1, entry.minutes(&DefaultTimeSource));
         Ok(())
@@ -285,7 +303,7 @@ mod tests {
     fn test_minutes_no_stop() -> TestRes {
         let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(-02:00));
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, Some(120), &ts)?,
+            start: Time::new(2020, 6, 20, 1, 7, TZ::from(Some(120), &ts))?,
             stop: None,
         };
         assert_eq!(4 * 60 + 48, entry.minutes(&ts));
@@ -296,7 +314,7 @@ mod tests {
     fn test_minutes_no_stop_no_tz() -> TestRes {
         let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None, &ts)?,
+            start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &ts))?,
             stop: None,
         };
         assert_eq!(48, entry.minutes(&ts));
@@ -306,8 +324,15 @@ mod tests {
     #[test]
     fn test_minutes_between() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
@@ -318,8 +343,15 @@ mod tests {
     #[test]
     fn test_minutes_between_after_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 19), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
@@ -330,8 +362,15 @@ mod tests {
     #[test]
     fn test_minutes_between_before_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 22), time!(0:00)).assume_utc();
@@ -342,8 +381,15 @@ mod tests {
     #[test]
     fn test_minutes_between_entry_overlaps_start() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
@@ -354,8 +400,15 @@ mod tests {
     #[test]
     fn test_minutes_between_entry_overlaps_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:30)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 21), time!(0:00)).assume_utc();
@@ -366,8 +419,15 @@ mod tests {
     #[test]
     fn test_minutes_between_entry_overlaps_start_and_stop() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
-            stop: Some(Time::new(2020, 6, 20, 10, 0, Some(0), &DefaultTimeSource)?),
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
+            stop: Some(Time::new(
+                2020,
+                6,
+                20,
+                10,
+                0,
+                TZ::from(Some(0), &DefaultTimeSource),
+            )?),
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:10)).assume_utc();
         let stop = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(9:50)).assume_utc();
@@ -378,7 +438,7 @@ mod tests {
     #[test]
     fn test_minutes_between_incomplete() -> TestRes {
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 9, 0, Some(0), &DefaultTimeSource)?,
+            start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: None,
         };
         let start = PrimitiveDateTime::new(date!(2020 - 06 - 20), time!(0:00)).assume_utc();
