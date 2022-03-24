@@ -1,6 +1,6 @@
 use crate::entry::Entry;
 use crate::parser::{parse_entries, parse_entry};
-use crate::timesource::{real_time::DefaultTimeSource, TimeSource};
+use crate::timesource::TimeSource;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{self, ErrorKind, Read, Seek, SeekFrom, Write};
@@ -377,8 +377,8 @@ pub fn t_data_file() -> Result<String, std::env::VarError> {
 }
 
 // If there isn't a pending entry, start a new one.
-pub fn start_new_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    _start_new_entry(t_data_file()?, &DefaultTimeSource)
+pub fn start_new_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+    _start_new_entry(t_data_file()?, ts)
 }
 
 fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
@@ -397,8 +397,8 @@ fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
 }
 
 // If there is a pending entry, finish it.
-pub fn stop_current_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    _stop_current_entry(t_data_file()?, &DefaultTimeSource)
+pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+    _stop_current_entry(t_data_file()?, ts)
 }
 
 fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(

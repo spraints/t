@@ -101,7 +101,7 @@ fn usage() -> ! {
 
 fn cmd_start() {
     cmd_validate();
-    match start_new_entry().unwrap() {
+    match start_new_entry(&TIME_SOURCE).unwrap() {
         None => println!("Starting work."),
         Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
     };
@@ -109,7 +109,7 @@ fn cmd_start() {
 
 fn cmd_stop() {
     cmd_validate();
-    match stop_current_entry().unwrap() {
+    match stop_current_entry(&TIME_SOURCE).unwrap() {
         Some(minutes) => println!("You just worked for {} minutes.", minutes),
         None => println!("You haven't started working yet!"),
     };
