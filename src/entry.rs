@@ -43,10 +43,7 @@ impl Entry {
     }
 
     pub fn stop_date(&self) -> Option<Date> {
-        match &self.stop {
-            None => None,
-            Some(t) => Some(t.wrapped.date()),
-        }
+        self.stop.as_ref().map(|t| t.wrapped.date())
     }
 
     pub fn is_finished(&self) -> bool {

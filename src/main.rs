@@ -157,7 +157,7 @@ fn cmd_bitbar(args: BitBarArgs) {
 }
 
 fn show_bitbar_plugin(mut wrapper: &str) {
-    if wrapper == "" {
+    if wrapper.is_empty() {
         wrapper = "t";
     }
     let working = cmd_status(StatusArgs { with_week: true });
