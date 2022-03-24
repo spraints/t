@@ -127,7 +127,7 @@ impl Iterator for WeekOfDaysIterator {
 #[cfg(test)]
 mod tests {
     use crate::parser::parse_entries;
-    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
+    use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
@@ -290,13 +290,13 @@ mod tests {
 
     #[test]
     fn test_each_week_current_entry_in_progress() -> TestRes {
-        set_mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
-        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes(), &MockTimeSource)?;
+        let ts = mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
+        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes(), &ts)?;
         let expected_entries = parse_entries(
             "2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes(),
-            &MockTimeSource,
+            &ts,
         )?;
-        let mut i = super::each_week(entries.clone(), &MockTimeSource);
+        let mut i = super::each_week(entries.clone(), &ts);
         assert_eq!(Some((date!(2020 - 01 - 12), expected_entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())

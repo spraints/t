@@ -239,7 +239,7 @@ impl Display for Time {
 #[cfg(test)]
 mod tests {
     use super::{Entry, Time};
-    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
+    use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use time::{date, offset, time, PrimitiveDateTime};
 
@@ -281,8 +281,8 @@ mod tests {
 
     #[test]
     fn test_now() {
-        set_mock_time(date!(2020 - 07 - 15), time!(11:23), offset!(+11:00));
-        let time = Time::now(&MockTimeSource);
+        let ts = mock_time(date!(2020 - 07 - 15), time!(11:23), offset!(+11:00));
+        let time = Time::now(&ts);
         assert_eq!("2020-07-15 11:23 +1100", format!("{}", time));
     }
 
@@ -298,23 +298,23 @@ mod tests {
 
     #[test]
     fn test_minutes_no_stop() -> TestRes {
-        set_mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(-02:00));
+        let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(-02:00));
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, Some(120), &MockTimeSource)?,
+            start: Time::new(2020, 6, 20, 1, 7, Some(120), &ts)?,
             stop: None,
         };
-        assert_eq!(4 * 60 + 48, entry.minutes(&MockTimeSource));
+        assert_eq!(4 * 60 + 48, entry.minutes(&ts));
         Ok(())
     }
 
     #[test]
     fn test_minutes_no_stop_no_tz() -> TestRes {
-        set_mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
+        let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
         let entry = Entry {
-            start: Time::new(2020, 6, 20, 1, 7, None, &MockTimeSource)?,
+            start: Time::new(2020, 6, 20, 1, 7, None, &ts)?,
             stop: None,
         };
-        assert_eq!(48, entry.minutes(&MockTimeSource));
+        assert_eq!(48, entry.minutes(&ts));
         Ok(())
     }
 

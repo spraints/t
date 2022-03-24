@@ -145,7 +145,7 @@ mod tests {
     use super::{prepare, Month, Report, Week, Year};
     use crate::entry::Entry;
     use crate::parser::parse_entries;
-    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
+    use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
@@ -185,11 +185,11 @@ mod tests {
 
     #[test]
     fn test_entry_covering_now() -> TestRes {
-        set_mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
+        let ts = mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
         let input = "2013-09-04 11:04 -0400";
-        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
+        let entries = parse_entries(input.as_bytes(), &ts)?;
         assert_eq!(
-            prepare(entries, &MockTimeSource),
+            prepare(entries, &ts),
             Report {
                 years: vec![Year {
                     year: 2013,
