@@ -10,11 +10,6 @@ pub struct Entry {
     pub stop: Option<Time>,
 }
 
-// ok for test and prod.
-fn explicit_offset(minutes: i16) -> time::UtcOffset {
-    time::UtcOffset::minutes(minutes)
-}
-
 impl Entry {
     pub fn start<TS: TimeSource>(ts: &TS) -> Self {
         Self {
@@ -190,7 +185,7 @@ impl Time {
     ) -> Result<Self, Box<dyn Error>> {
         let date = time::Date::try_from_ymd(year as i32, month, day)?;
         let time = time::Time::try_from_hms(hour, minute, 0)?;
-        let offset = utc_offset.map(explicit_offset);
+        let offset = utc_offset.map(time::UtcOffset::minutes);
         Ok(Self::from_dto(date, time, offset, ts))
     }
 
