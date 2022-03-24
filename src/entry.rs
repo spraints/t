@@ -13,7 +13,7 @@ pub struct Entry {
 impl Entry {
     pub fn start<TS: TimeSource>(ts: &TS) -> Self {
         Self {
-            start: Time::now(ts),
+            start: Time::at(ts.now()),
             stop: None,
         }
     }
@@ -33,7 +33,7 @@ impl Entry {
             panic!("finish called for a finished entry! {}", self);
         }
         Self {
-            stop: Some(Time::now(ts)),
+            stop: Some(Time::at(ts.now())),
             ..self
         }
     }
@@ -157,13 +157,6 @@ pub struct Time {
 }
 
 impl Time {
-    pub fn now<TS: TimeSource>(ts: &TS) -> Self {
-        Self {
-            wrapped: ts.now(),
-            implied_tz: false,
-        }
-    }
-
     pub fn at(wrapped: OffsetDateTime) -> Self {
         Self {
             wrapped,
@@ -231,8 +224,8 @@ impl Display for Time {
 #[cfg(test)]
 mod tests {
     use super::{Entry, Time};
-    use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
+    use crate::timesource::{mock_time::mock_time, TimeSource};
     use time::{date, offset, time, PrimitiveDateTime};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
@@ -272,9 +265,9 @@ mod tests {
     }
 
     #[test]
-    fn test_now() {
+    fn test_at() {
         let ts = mock_time(date!(2020 - 07 - 15), time!(11:23), offset!(+11:00));
-        let time = Time::now(&ts);
+        let time = Time::at(ts.now());
         assert_eq!("2020-07-15 11:23 +1100", format!("{}", time));
     }
 
