@@ -1,4 +1,4 @@
-use crate::timesource::{local_offset, now};
+use crate::timesource::{local_offset, now, real_time::DefaultTimeSource, TimeSource};
 use std::clone::Clone;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
@@ -16,9 +16,9 @@ fn explicit_offset(minutes: i16) -> time::UtcOffset {
 }
 
 impl Entry {
-    pub fn start() -> Self {
+    pub fn start<TS: TimeSource>(ts: &TS) -> Self {
         Self {
-            start: Time::now(),
+            start: Time::now_ts(ts),
             stop: None,
         }
     }
@@ -33,12 +33,12 @@ impl Entry {
             }
         }
     }
-    pub fn finish(self) -> Self {
+    pub fn finish<TS: TimeSource>(self, ts: &TS) -> Self {
         if self.is_finished() {
             panic!("finish called for a finished entry! {}", self);
         }
         Self {
-            stop: Some(Time::now()),
+            stop: Some(Time::now_ts(ts)),
             ..self
         }
     }
@@ -115,8 +115,12 @@ impl Entry {
     }
 
     pub fn minutes(&self) -> i64 {
+        self.minutes_ts(&DefaultTimeSource)
+    }
+
+    pub fn minutes_ts<TS: TimeSource>(&self, ts: &TS) -> i64 {
         let duration = match &self.stop {
-            None => now() - self.start.wrapped,
+            None => ts.now() - self.start.wrapped,
             Some(t) => t.wrapped - self.start.wrapped,
         };
         duration.whole_minutes()
@@ -166,8 +170,12 @@ pub struct Time {
 
 impl Time {
     pub fn now() -> Self {
+        Self::now_ts(&DefaultTimeSource)
+    }
+
+    pub fn now_ts<TS: TimeSource>(ts: &TS) -> Self {
         Self {
-            wrapped: now(),
+            wrapped: ts.now(),
             implied_tz: false,
         }
     }
@@ -233,7 +241,7 @@ impl Display for Time {
 #[cfg(test)]
 mod tests {
     use super::{Entry, Time};
-    use crate::timesource::mock_time::set_mock_time;
+    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
     use time::{date, offset, time, PrimitiveDateTime};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
@@ -275,7 +283,7 @@ mod tests {
     #[test]
     fn test_now() {
         set_mock_time(date!(2020 - 07 - 15), time!(11:23), offset!(+11:00));
-        let time = Time::now();
+        let time = Time::now_ts(&MockTimeSource);
         assert_eq!("2020-07-15 11:23 +1100", format!("{}", time));
     }
 
@@ -296,7 +304,7 @@ mod tests {
             start: Time::new(2020, 6, 20, 1, 7, Some(120))?,
             stop: None,
         };
-        assert_eq!(4 * 60 + 48, entry.minutes());
+        assert_eq!(4 * 60 + 48, entry.minutes_ts(&MockTimeSource));
         Ok(())
     }
 
@@ -307,7 +315,7 @@ mod tests {
             start: Time::new(2020, 6, 20, 1, 7, None)?,
             stop: None,
         };
-        assert_eq!(48, entry.minutes());
+        assert_eq!(48, entry.minutes_ts(&MockTimeSource));
         Ok(())
     }
 

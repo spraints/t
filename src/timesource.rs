@@ -1,4 +1,3 @@
-#[cfg(not(test))]
 pub mod real_time {
     use std::cell::RefCell;
     use time::{OffsetDateTime, UtcOffset};
@@ -7,22 +6,26 @@ pub mod real_time {
         static LOCAL_OFFSET: RefCell<Option<UtcOffset>> = RefCell::new(None);
     }
 
-    pub fn now() -> OffsetDateTime {
-        OffsetDateTime::now_local()
-    }
+    pub struct DefaultTimeSource;
 
-    pub fn local_offset() -> UtcOffset {
-        LOCAL_OFFSET.with(|cell| {
-            let val = cell.borrow().as_ref().cloned();
-            match val {
-                Some(ret) => ret,
-                None => {
-                    let ret = UtcOffset::current_local_offset();
-                    *cell.borrow_mut() = Some(ret);
-                    ret
+    impl super::TimeSource for DefaultTimeSource {
+        fn now(&self) -> OffsetDateTime {
+            OffsetDateTime::now_local()
+        }
+
+        fn local_offset(&self) -> UtcOffset {
+            LOCAL_OFFSET.with(|cell| {
+                let val = cell.borrow().as_ref().cloned();
+                match val {
+                    Some(ret) => ret,
+                    None => {
+                        let ret = UtcOffset::current_local_offset();
+                        *cell.borrow_mut() = Some(ret);
+                        ret
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 }
 
@@ -37,18 +40,22 @@ pub mod mock_time {
         static MOCK_TIME: RefCell<Option<OffsetDateTime>> = RefCell::new(None);
     }
 
-    pub fn now() -> OffsetDateTime {
-        //self.time.clone()
-        MOCK_TIME.with(|cell| {
-            cell.borrow()
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(OffsetDateTime::now_local)
-        })
-    }
+    pub struct MockTimeSource;
 
-    pub fn local_offset() -> UtcOffset {
-        now().offset()
+    impl super::TimeSource for MockTimeSource {
+        fn now(&self) -> OffsetDateTime {
+            //self.time.clone()
+            MOCK_TIME.with(|cell| {
+                cell.borrow()
+                    .as_ref()
+                    .cloned()
+                    .unwrap_or_else(OffsetDateTime::now_local)
+            })
+        }
+
+        fn local_offset(&self) -> UtcOffset {
+            self.now().offset()
+        }
     }
 
     pub fn set_mock_time(date: Date, time: Time, offset: UtcOffset) {
@@ -58,7 +65,20 @@ pub mod mock_time {
     }
 }
 
+pub trait TimeSource {
+    fn local_offset(&self) -> time::UtcOffset;
+    fn now(&self) -> time::OffsetDateTime;
+}
+
+pub fn now() -> time::OffsetDateTime {
+    TS.now()
+}
+
+pub fn local_offset() -> time::UtcOffset {
+    TS.local_offset()
+}
+
 #[cfg(test)]
-pub use mock_time::{local_offset, now};
+static TS: mock_time::MockTimeSource = mock_time::MockTimeSource;
 #[cfg(not(test))]
-pub use real_time::{local_offset, now};
+static TS: real_time::DefaultTimeSource = real_time::DefaultTimeSource;

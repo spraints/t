@@ -1,14 +1,18 @@
 use crate::entry::Entry;
-use crate::timesource::now;
+use crate::timesource::{now, real_time::DefaultTimeSource, TimeSource};
 use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
 pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
+    each_week_ts(entries, &DefaultTimeSource)
+}
+
+pub fn each_week_ts<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
     DaysIterator {
         entries,
         days: 7,
         last_date: None,
         next_index: 0,
-        now: now(),
+        now: ts.now(),
     }
 }
 
@@ -119,7 +123,7 @@ impl Iterator for WeekOfDaysIterator {
 #[cfg(test)]
 mod tests {
     use crate::parser::parse_entries;
-    use crate::timesource::mock_time::set_mock_time;
+    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
@@ -276,7 +280,7 @@ mod tests {
         let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes())?;
         let expected_entries =
             parse_entries("2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes())?;
-        let mut i = super::each_week(entries.clone());
+        let mut i = super::each_week_ts(entries.clone(), &MockTimeSource);
         assert_eq!(Some((date!(2020 - 01 - 12), expected_entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())

@@ -1,6 +1,6 @@
 use crate::entry::Entry;
-use crate::iter::{each_day_in_week, each_week};
-use crate::timesource::local_offset;
+use crate::iter::{each_day_in_week, each_week_ts};
+use crate::timesource::{local_offset, real_time::DefaultTimeSource, TimeSource};
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -34,8 +34,12 @@ struct State {
 }
 
 pub fn prepare(entries: Vec<Entry>) -> Report {
+    prepare_ts(entries, &DefaultTimeSource)
+}
+
+fn prepare_ts<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
     let mut state = None;
-    for (week_start, entries) in each_week(entries) {
+    for (week_start, entries) in each_week_ts(entries, ts) {
         state = Some(prepare_week(state, week_start, entries));
     }
     finish(state)
@@ -137,10 +141,10 @@ fn finish(state: Option<State>) -> Report {
 
 #[cfg(test)]
 mod tests {
-    use super::{prepare, Month, Report, Week, Year};
+    use super::{prepare, prepare_ts, Month, Report, Week, Year};
     use crate::entry::Entry;
     use crate::parser::parse_entries;
-    use crate::timesource::mock_time::set_mock_time;
+    use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
@@ -180,7 +184,7 @@ mod tests {
         let input = "2013-09-04 11:04 -0400";
         let entries = parse_entries(input.as_bytes())?;
         assert_eq!(
-            prepare(entries),
+            prepare_ts(entries, &MockTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
