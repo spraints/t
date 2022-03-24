@@ -199,7 +199,7 @@ fn cmd_week() {
 
 fn cmd_all() {
     let entries = read_entries().expect("error parsing data file");
-    for line in report::all::calc(entries, &DEFAULT_SPARKS) {
+    for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
         let week_end = line.start + Duration::days(6);
         print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
         if let Some(analysis) = line.analysis {
