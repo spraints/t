@@ -6,7 +6,7 @@ pub mod real_time {
         static LOCAL_OFFSET: RefCell<Option<UtcOffset>> = RefCell::new(None);
     }
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct DefaultTimeSource;
 
     impl super::TimeSource for DefaultTimeSource {
@@ -41,7 +41,7 @@ pub mod mock_time {
         static MOCK_TIME: RefCell<Option<OffsetDateTime>> = RefCell::new(None);
     }
 
-    #[derive(Default)]
+    #[derive(Default, Clone)]
     pub struct MockTimeSource /*{
         pub time: OffsetDateTime,
     }*/;

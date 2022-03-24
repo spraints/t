@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_single_entry() -> TestRes {
         let input = "2013-09-04 11:04,2013-09-04 12:24\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {
@@ -187,7 +187,7 @@ mod tests {
     fn test_entry_covering_now() -> TestRes {
         set_mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
         let input = "2013-09-04 11:04 -0400";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &MockTimeSource),
             Report {
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn test_entry_spanning_weekend() -> TestRes {
         let input = "2013-11-16 00:00,2013-11-17 09:20";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {
@@ -247,7 +247,7 @@ mod tests {
                      2016-01-04 11:16,2016-01-04 11:26\n\
                      2016-01-05 11:26,2016-01-05 11:39\n\
                      2016-01-05 11:39,2016-01-05 11:49\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {

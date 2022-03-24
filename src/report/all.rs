@@ -162,7 +162,7 @@ mod tests {
                      2013-09-04 11:16,2013-09-04 11:26\n\
                      2013-09-05 11:26,2013-09-05 11:39\n\
                      2013-09-05 11:39,2013-09-05 11:49\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         let sparks = vec![0, 1, 2, 3, 4, 5, 6];
         let result = super::calc(entries, &sparks, &DefaultTimeSource);
         assert_eq!(

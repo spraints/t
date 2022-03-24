@@ -12,6 +12,7 @@ const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
 mod tests {
     use crate::entry::Entry;
     use crate::timesource::mock_time::{set_mock_time, MockTimeSource};
+    use crate::timesource::real_time::DefaultTimeSource;
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;
@@ -272,21 +273,21 @@ mod tests {
     #[test]
     fn test_read_last_entry_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, fixt.open()?.read_last_entry()?);
+        assert_eq!(None, fixt.open()?.read_last_entry(&DefaultTimeSource)?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(None, fixt.open()?.read_last_entry()?);
+        assert_eq!(None, fixt.open()?.read_last_entry(&DefaultTimeSource)?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        match fixt.open()?.read_last_entry()? {
+        match fixt.open()?.read_last_entry(&DefaultTimeSource)? {
             None => panic!("expected an entry"),
             Some(e) => assert_eq!(
                 "2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n",
@@ -299,14 +300,20 @@ mod tests {
     #[test]
     fn test_read_last_entries_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_last_entries(10, &DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_last_entries_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_last_entries(10, &DefaultTimeSource)?
+        );
         Ok(())
     }
 
@@ -314,58 +321,83 @@ mod tests {
     fn test_read_last_entries() -> TestRes {
         let fixt = Fixture::new(Some("thousand-entries.csv"))?;
         assert!(
-            fixt.open()?.read_last_entries(10)?.len() >= 10,
+            fixt.open()?
+                .read_last_entries(10, &DefaultTimeSource)?
+                .len()
+                >= 10,
             "expect at least 10 entries to be returned"
         );
         assert!(
-            fixt.open()?.read_last_entries(100)?.len() >= 100,
+            fixt.open()?
+                .read_last_entries(100, &DefaultTimeSource)?
+                .len()
+                >= 100,
             "expect at least 100 entries to be returned"
         );
         // the file only has 1000 entries, so we can't get more than that.
-        assert_eq!(1000, fixt.open()?.read_last_entries(1000)?.len());
-        assert_eq!(1000, fixt.open()?.read_last_entries(10000)?.len());
+        assert_eq!(
+            1000,
+            fixt.open()?
+                .read_last_entries(1000, &DefaultTimeSource)?
+                .len()
+        );
+        assert_eq!(
+            1000,
+            fixt.open()?
+                .read_last_entries(10000, &DefaultTimeSource)?
+                .len()
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_blank_file() -> TestRes {
         let fixt = Fixture::new(Some("blank-lines.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_three() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        assert_eq!(3, fixt.open()?.read_entries()?.len());
+        assert_eq!(3, fixt.open()?.read_entries(&DefaultTimeSource)?.len());
         Ok(())
     }
 
     #[test]
     fn test_read_entries_thousand() -> TestRes {
         let fixt = Fixture::new(Some("thousand-entries.csv"))?;
-        assert_eq!(1000, fixt.open()?.read_entries()?.len());
+        assert_eq!(1000, fixt.open()?.read_entries(&DefaultTimeSource)?.len());
         Ok(())
     }
 
     #[test]
     fn test_read_entries_started() -> TestRes {
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
-        let entries = fixt.open()?.read_entries()?;
+        let entries = fixt.open()?.read_entries(&DefaultTimeSource)?;
         assert_eq!(1, entries.len());
         assert!(!entries[0].is_finished());
         Ok(())
@@ -377,18 +409,18 @@ pub fn t_data_file() -> Result<String, std::env::VarError> {
 }
 
 // If there isn't a pending entry, start a new one.
-pub fn start_new_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+pub fn start_new_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
     _start_new_entry(t_data_file()?, ts)
 }
 
-fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
+fn _start_new_entry<P: AsRef<Path>, TS: TimeSource + Clone>(
     t_data_file: P,
     ts: &TS,
 ) -> Result<Option<i64>, Box<dyn Error>> {
-    let (mut f, entry, _, pos) = read_for_update(t_data_file)?;
+    let (mut f, entry, _, pos) = read_for_update(t_data_file, ts)?;
     if let Some(entry) = entry {
         if !entry.is_finished() {
-            return Ok(Some(entry.minutes_ts(ts)));
+            return Ok(Some(entry.minutes(ts)));
         }
     }
     f.seek(SeekFrom::Start(pos))?;
@@ -397,15 +429,15 @@ fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
 }
 
 // If there is a pending entry, finish it.
-pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+pub fn stop_current_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
     _stop_current_entry(t_data_file()?, ts)
 }
 
-fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
+fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource + Clone>(
     t_data_file: P,
     ts: &TS,
 ) -> Result<Option<i64>, Box<dyn Error>> {
-    let (mut f, entry, pos, _) = read_for_update(t_data_file)?;
+    let (mut f, entry, pos, _) = read_for_update(t_data_file, ts)?;
     match entry {
         None => Ok(None),
         Some(entry) => {
@@ -415,7 +447,7 @@ fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
                 f.seek(SeekFrom::Start(pos))?;
                 let entry = entry.finish(ts);
                 write!(f, "{}", entry)?;
-                Ok(Some(entry.minutes()))
+                Ok(Some(entry.minutes(ts)))
             }
         }
     }
@@ -425,7 +457,10 @@ type ReadResult = (File, Option<Entry>, u64, u64);
 
 // Get the last entry from the file, along with its start and stop
 // positions.
-fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn Error>> {
+fn read_for_update<P: AsRef<Path>, TS: TimeSource + Clone>(
+    t_data_file: P,
+    ts: &TS,
+) -> Result<ReadResult, Box<dyn Error>> {
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)
@@ -439,7 +474,7 @@ fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn
     let mut stop_pos = start_pos;
 
     loop {
-        let (entry, returned) = parse_entry(f)?;
+        let (entry, returned) = parse_entry(f, ts)?;
         f = returned;
         if entry.is_none() {
             break;
@@ -452,16 +487,19 @@ fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn
     Ok((f, last_entry, start_pos, stop_pos))
 }
 
-pub fn read_entries() -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_entries()
+pub fn read_entries<TS: TimeSource + Clone>(ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_entries(ts)
 }
 
-pub fn read_last_entry() -> Result<Option<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_last_entry()
+pub fn read_last_entry<TS: TimeSource + Clone>(ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_last_entry(ts)
 }
 
-pub fn read_last_entries(n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_last_entries(n)
+pub fn read_last_entries<TS: TimeSource + Clone>(
+    n: u64,
+    ts: &TS,
+) -> Result<Vec<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_last_entries(n, ts)
 }
 
 fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
@@ -479,23 +517,30 @@ struct TFile {
 }
 
 impl TFile {
-    fn read_entries(self) -> Result<Vec<Entry>, Box<dyn Error>> {
+    fn read_entries<TS: TimeSource + Clone>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
-            Some(f) => parse_entries(f),
+            Some(f) => parse_entries(f, ts),
             None => Ok(vec![]),
         }
     }
 
-    fn read_last_entry(self) -> Result<Option<Entry>, Box<dyn Error>> {
-        Ok(self.read_last_entries(1)?.into_iter().last())
+    fn read_last_entry<TS: TimeSource + Clone>(
+        self,
+        ts: &TS,
+    ) -> Result<Option<Entry>, Box<dyn Error>> {
+        Ok(self.read_last_entries(1, ts)?.into_iter().last())
     }
 
-    fn read_last_entries(self, n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
+    fn read_last_entries<TS: TimeSource + Clone>(
+        self,
+        n: u64,
+        ts: &TS,
+    ) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
             None => Ok(vec![]),
             Some(mut f) => {
                 seek_last_entries(&mut f, n)?;
-                parse_entries(f)
+                parse_entries(f, ts)
             }
         }
     }

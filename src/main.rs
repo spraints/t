@@ -131,7 +131,7 @@ fn cmd_edit() -> ! {
 }
 
 fn cmd_status(args: StatusArgs) -> bool {
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let working = match entries.last() {
         None => false,
         Some(e) => e.stop.is_none(),
@@ -178,7 +178,7 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 fn cmd_today() {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
     print_day_legend();
@@ -187,7 +187,7 @@ fn cmd_today() {
 fn cmd_week() {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_week, now);
     println!(
         "You have worked for {} minutes since {}.",
@@ -198,7 +198,7 @@ fn cmd_week() {
 }
 
 fn cmd_all() {
-    let entries = read_entries().expect("error parsing data file");
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
     for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
         let week_end = line.start + Duration::days(6);
         print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
@@ -233,7 +233,7 @@ let width = match term_size::dimensions() {
 */
 
 fn cmd_days(args: DaysArgs) {
-    let entries = read_entries().expect("error parsing data file");
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
     print!("{}", report::days::prepare(entries, &TIME_SOURCE));
     print_week_legend();
@@ -245,7 +245,7 @@ fn cmd_path() {
 
 fn cmd_validate() {
     let mut maybe_last_entry = None;
-    for (n, entry) in read_entries().unwrap().into_iter().enumerate() {
+    for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
         if let Err(err) = entry.is_valid_after(&maybe_last_entry) {
             println!("{}: {}", n, err);
         }
