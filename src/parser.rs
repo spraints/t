@@ -92,17 +92,17 @@ impl<R: Read> Parser<R> {
                 match self.read()? {
                     // EOF or EOL.
                     None | Some(b'\n') => Ok(Some((
-                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        Time::new(year, m(month), day, hour, minute, self.implied_tz())?,
                         true,
                     ))),
                     // End of current entry.
                     Some(b',') => Ok(Some((
-                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        Time::new(year, m(month), day, hour, minute, self.implied_tz())?,
                         false,
                     ))),
                     // TZ follows the space.
                     Some(b' ') => {
-                        let sign: i16 = match self.read()? {
+                        let sign: i32 = match self.read()? {
                             Some(b'-') => -1,
                             Some(b'+') => 1,
                             None => return Err(self.error("expected +/- but got EOF".to_string())),
@@ -112,12 +112,14 @@ impl<R: Read> Parser<R> {
                                 )
                             }
                         };
-                        let hr_off = self.read_number(10)? as i16;
-                        let min_off = self.read_number(10)? as i16;
+                        let hr_off = self.read_number(10)? as i32;
+                        let min_off = self.read_number(10)? as i32;
 
                         let total_min_off = sign * ((hr_off * 60) + min_off);
-                        let tz = TZ::Known(time::UtcOffset::minutes(total_min_off));
-                        let res = Time::new(year, month, day, hour, minute, tz)?;
+                        let tz = TZ::Known(
+                            time::UtcOffset::from_whole_seconds(60 * total_min_off).unwrap(),
+                        );
+                        let res = Time::new(year, m(month), day, hour, minute, tz)?;
 
                         match self.read()? {
                             // EOF or EOL.
@@ -218,9 +220,28 @@ impl<R: Read> Parser<R> {
     }
 }
 
+fn m(m: u8) -> time::Month {
+    use time::Month::*;
+    match m {
+        1 => January,
+        2 => February,
+        3 => March,
+        4 => April,
+        5 => May,
+        6 => June,
+        7 => July,
+        8 => August,
+        9 => September,
+        10 => October,
+        11 => November,
+        12 => December,
+        _ => panic!("invalid month {}", m),
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_entries, write_entries, Entry, Time, TZ};
+    use super::{m, parse_entries, write_entries, Entry, Time, TZ};
     use crate::timesource::real_time::DefaultTimeSource;
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
@@ -234,7 +255,7 @@ mod tests {
         offset: Option<i16>,
     ) -> Result<Time, Box<dyn std::error::Error>> {
         let tz = TZ::from(offset, &DefaultTimeSource);
-        Time::new(year, month, day, hour, minute, tz)
+        Time::new(year, m(month), day, hour, minute, tz)
     }
 
     #[test]

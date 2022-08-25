@@ -17,7 +17,7 @@ struct Year {
 
 #[derive(Debug, PartialEq)]
 struct Month {
-    month: u8,
+    month: time::Month,
     weeks: Vec<Week>,
 }
 
@@ -118,7 +118,11 @@ fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> We
 }
 
 fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> i64 {
-    let stop = start.next_day().midnight().assume_offset(ts.local_offset());
+    let stop = start
+        .next_day()
+        .unwrap()
+        .midnight()
+        .assume_offset(ts.local_offset());
     let start = start.midnight().assume_offset(ts.local_offset());
     entries
         .iter()
@@ -148,7 +152,7 @@ mod tests {
     use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
-    use time::{date, offset, time};
+    use time::macros::{date, offset, time};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -171,7 +175,7 @@ mod tests {
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
-                        month: 9,
+                        month: time::Month::September,
                         weeks: vec![Week {
                             start: date!(2013 - 09 - 01),
                             minutes: [0, 0, 0, 80, 0, 0, 0],
@@ -194,7 +198,7 @@ mod tests {
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
-                        month: 9,
+                        month: time::Month::September,
                         weeks: vec![Week {
                             start: date!(2013 - 09 - 01),
                             minutes: [0, 0, 0, 56, 0, 0, 0]
@@ -216,7 +220,7 @@ mod tests {
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
-                        month: 11,
+                        month: time::Month::November,
                         weeks: vec![
                             Week {
                                 start: date!(2013 - 11 - 10),
@@ -256,14 +260,14 @@ mod tests {
                         year: 2015,
                         months: vec![
                             Month {
-                                month: 11,
+                                month: time::Month::November,
                                 weeks: vec![Week {
                                     start: date!(2015 - 11 - 29),
                                     minutes: [0, 0, 30, 29, 0, 0, 0]
                                 },]
                             },
                             Month {
-                                month: 12,
+                                month: time::Month::December,
                                 weeks: vec![
                                     Week {
                                         start: date!(2015 - 12 - 06),
@@ -288,7 +292,7 @@ mod tests {
                     Year {
                         year: 2016,
                         months: vec![Month {
-                            month: 1,
+                            month: time::Month::January,
                             weeks: vec![Week {
                                 start: date!(2016 - 01 - 03),
                                 minutes: [0, 41, 23, 0, 0, 0, 0]
