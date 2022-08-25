@@ -76,6 +76,6 @@ fn start_of_week(dt: Date) -> Date {
     if dt.weekday() == Sunday {
         dt
     } else {
-        start_of_week(dt.previous_day())
+        start_of_week(dt.previous_day().unwrap())
     }
 }

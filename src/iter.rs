@@ -130,7 +130,7 @@ mod tests {
     use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
-    use time::{date, offset, time};
+    use time::macros::{date, offset, time};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 

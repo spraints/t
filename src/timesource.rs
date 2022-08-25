@@ -6,11 +6,11 @@ pub mod real_time {
 
     impl super::TimeSource for DefaultTimeSource {
         fn now(&self) -> OffsetDateTime {
-            OffsetDateTime::now_local()
+            OffsetDateTime::now_local().unwrap_or_else(|_| OffsetDateTime::now_utc())
         }
 
         fn local_offset(&self) -> UtcOffset {
-            UtcOffset::current_local_offset()
+            UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC)
         }
     }
 }

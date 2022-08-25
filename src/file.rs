@@ -17,7 +17,7 @@ mod tests {
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
-    use time::{date, offset, time};
+    use time::macros::{date, offset, time};
 
     struct Fixture {
         dir: tempfile::TempDir,

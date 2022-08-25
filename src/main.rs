@@ -201,10 +201,11 @@ fn cmd_week() {
     // longest week so far is 46 entries, so 100 should be totally fine.
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_week, now);
+    let f = time::format_description::parse("[year]-[month]-[day]").unwrap();
     println!(
         "You have worked for {} minutes since {}.",
         minutes,
-        start_week.format("%Y-%m-%d")
+        start_week.format(&f).unwrap(),
     );
     print_week_legend();
 }
@@ -217,6 +218,8 @@ fn cmd_race(args: RaceArgs) {
     let (start_week, now) = extents::this_week();
     let minutes_this_week = minutes_between(&entries, start_week, now);
 
+    let f = time::format_description::parse("[year]-[month]-[day]").unwrap();
+
     let mut total_prev_minutes = 0;
     let mut behind = 0;
     let mut ahead = 0;
@@ -225,7 +228,7 @@ fn cmd_race(args: RaceArgs) {
         let wstart = start_week - off;
         let wnow = now - off;
         let minutes = minutes_between(&entries, wstart, wnow);
-        println!("{}: {} minutes", wstart.format("%Y-%m-%d"), minutes);
+        println!("{}: {} minutes", wstart.format(&f).unwrap(), minutes);
         total_prev_minutes += minutes;
         if minutes_this_week > minutes {
             ahead += 1;
@@ -247,7 +250,7 @@ fn cmd_race(args: RaceArgs) {
     };
     println!(
         "{}: {} minutes: {}",
-        start_week.format("%Y-%m-%d"),
+        start_week.format(&f).unwrap(),
         minutes_this_week,
         summary
     );

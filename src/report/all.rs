@@ -129,7 +129,10 @@ fn minutes_between_days<TS: TimeSource>(
     minutes_between(
         entries,
         start.midnight().assume_offset(ts.local_offset()),
-        stop.next_day().midnight().assume_offset(ts.local_offset()),
+        stop.next_day()
+            .unwrap()
+            .midnight()
+            .assume_offset(ts.local_offset()),
     )
 }
 
@@ -145,7 +148,7 @@ fn sqrtint(n: i64) -> i64 {
 mod tests {
     use crate::parser::parse_entries;
     use crate::timesource::real_time::DefaultTimeSource;
-    use time::date;
+    use time::macros::date;
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
