@@ -32,6 +32,8 @@ enum TCommand {
     Today(NoArgs),
     #[options(help = "show time worked this week")]
     Week(NoArgs),
+    #[options(help = "compare my current progress this week against previous weeks")]
+    Race(RaceArgs),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
     #[options(help = "show a table of time worked per day")]
@@ -63,6 +65,12 @@ struct DaysArgs {
 }
 
 #[derive(Options)]
+struct RaceArgs {
+    #[options(help = "number of previous weeks to consider")]
+    count: Option<i16>,
+}
+
+#[derive(Options)]
 struct NoArgs {}
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
@@ -81,6 +89,7 @@ fn main() {
             TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
+            TCommand::Race(args) => cmd_race(args),
             TCommand::All(_) => cmd_all(),
             //TCommand::Punchcard(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
@@ -195,6 +204,50 @@ fn cmd_week() {
         start_week.format("%Y-%m-%d")
     );
     print_week_legend();
+}
+
+fn cmd_race(args: RaceArgs) {
+    let RaceArgs { count } = args;
+    let previous_weeks = count.unwrap_or(1);
+
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let (start_week, now) = extents::this_week();
+    let minutes_this_week = minutes_between(&entries, start_week, now);
+
+    let mut total_prev_minutes = 0;
+    let mut behind = 0;
+    let mut ahead = 0;
+    for off in -previous_weeks..0 {
+        let off = Duration::weeks(-off as i64);
+        let wstart = start_week - off;
+        let wnow = now - off;
+        let minutes = minutes_between(&entries, wstart, wnow);
+        println!("{}: {} minutes", wstart.format("%Y-%m-%d"), minutes);
+        total_prev_minutes += minutes;
+        if minutes_this_week > minutes {
+            ahead += 1;
+        } else {
+            behind += 1;
+        }
+    }
+
+    let summary = match (previous_weeks, total_prev_minutes, minutes_this_week) {
+        (1, prev, cur) if prev == cur => "equal!".to_string(),
+        (1, prev, cur) if prev < cur => "ahead of last week!".to_string(),
+        (1, _, _) => "behind last week".to_string(),
+        (c, prev, cur) => format!(
+            "ahead of {}, behind {}, avg {:+}",
+            ahead,
+            behind,
+            cur - (prev / c as i64)
+        ),
+    };
+    println!(
+        "{}: {} minutes: {}",
+        start_week.format("%Y-%m-%d"),
+        minutes_this_week,
+        summary
+    );
 }
 
 fn cmd_all() {
