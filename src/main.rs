@@ -42,6 +42,8 @@ enum TCommand {
     Path(NoArgs),
     #[options(help = "check for any formatting errors in t.csv")]
     Validate(NoArgs),
+    #[options(help = "show current timestamp as it would be written to t.csv")]
+    Now(NoArgs),
 }
 
 #[derive(Options)]
@@ -99,6 +101,7 @@ fn main() {
             //TCommand::Short(_) => cmd_short(),
             TCommand::Path(_) => cmd_path(),
             TCommand::Validate(_) => cmd_validate(),
+            TCommand::Now(_) => cmd_now(),
         },
     };
 }
@@ -304,6 +307,11 @@ fn cmd_validate() {
         }
         maybe_last_entry = Some(entry);
     }
+}
+
+fn cmd_now() {
+    let t = t::entry::Time::at(t::timesource::TimeSource::now(&TIME_SOURCE));
+    println!("{}", t);
 }
 
 fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {

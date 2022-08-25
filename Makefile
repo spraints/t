@@ -13,8 +13,8 @@ rspec:
 integration-ruby:
 	time env COMMAND=bin/t bash test.sh
 
-integration-rust: t
-	time env COMMAND="cargo run" bash test.sh
+integration-rust: target/debug/t
+	time env COMMAND=target/debug/t bash test.sh
 
 t: target/debug/t
 

@@ -82,3 +82,16 @@ EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee"
 
 assert_out "You have worked for 130 minutes today." -- today
 assert_out "You have worked for 130 minutes since " -- week
+
+if [ "$COMMAND" != "bin/t" ]; then
+  echo 'T now (tz)'
+  real_zone="$(date +%z)"
+  t_zone="$($COMMAND now | awk '{ print $3 }')"
+  if [ "$real_zone" == "$t_zone" ]; then
+    echo PASS
+  else
+    echo FAIL
+    echo "expected TZ to be '${real_zone}' but it was '${t_zone}'."
+    exit 1
+  fi
+fi
