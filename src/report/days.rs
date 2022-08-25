@@ -1,5 +1,6 @@
-use crate::entry::{local_offset, Entry};
+use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
+use crate::timesource::TimeSource;
 use std::fmt::{self, Display, Formatter};
 use time::{Date, Duration};
 
@@ -32,16 +33,21 @@ struct State {
     month: Month,
 }
 
-pub fn prepare(entries: Vec<Entry>) -> Report {
+pub fn prepare<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
     let mut state = None;
-    for (week_start, entries) in each_week(entries) {
-        state = Some(prepare_week(state, week_start, entries));
+    for (week_start, entries) in each_week(entries, ts) {
+        state = Some(prepare_week(state, week_start, entries, ts));
     }
     finish(state)
 }
 
-fn prepare_week(state: Option<State>, week_start: Date, entries: Vec<Entry>) -> State {
-    let week = convert_week(week_start, entries);
+fn prepare_week<TS: TimeSource>(
+    state: Option<State>,
+    week_start: Date,
+    entries: Vec<Entry>,
+    ts: &TS,
+) -> State {
+    let week = convert_week(week_start, entries, ts);
     match state {
         None => {
             let month = Month {
@@ -102,18 +108,18 @@ fn prepare_week(state: Option<State>, week_start: Date, entries: Vec<Entry>) -> 
     }
 }
 
-fn convert_week(start: Date, entries: Vec<Entry>) -> Week {
+fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> Week {
     let mut minutes = [0; 7];
-    for (day_start, entries) in each_day_in_week(entries, start) {
+    for (day_start, entries) in each_day_in_week(entries, start, ts) {
         let i = (day_start - start).whole_days();
-        minutes[i as usize] = minutes_on_day(day_start, entries);
+        minutes[i as usize] = minutes_on_day(day_start, entries, ts);
     }
     Week { start, minutes }
 }
 
-fn minutes_on_day(start: Date, entries: Vec<Entry>) -> i64 {
-    let stop = start.next_day().midnight().assume_offset(local_offset());
-    let start = start.midnight().assume_offset(local_offset());
+fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> i64 {
+    let stop = start.next_day().midnight().assume_offset(ts.local_offset());
+    let start = start.midnight().assume_offset(ts.local_offset());
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
@@ -137,9 +143,10 @@ fn finish(state: Option<State>) -> Report {
 #[cfg(test)]
 mod tests {
     use super::{prepare, Month, Report, Week, Year};
-    use crate::entry::mock_time::*;
     use crate::entry::Entry;
     use crate::parser::parse_entries;
+    use crate::timesource::mock_time::mock_time;
+    use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
@@ -148,15 +155,18 @@ mod tests {
     #[test]
     fn test_empty() {
         let entries: Vec<Entry> = vec![];
-        assert_eq!(prepare(entries), Report { years: vec![] });
+        assert_eq!(
+            prepare(entries, &DefaultTimeSource),
+            Report { years: vec![] }
+        );
     }
 
     #[test]
     fn test_single_entry() -> TestRes {
         let input = "2013-09-04 11:04,2013-09-04 12:24\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -175,11 +185,11 @@ mod tests {
 
     #[test]
     fn test_entry_covering_now() -> TestRes {
-        set_mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
+        let ts = mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
         let input = "2013-09-04 11:04 -0400";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &ts)?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &ts),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -199,9 +209,9 @@ mod tests {
     #[test]
     fn test_entry_spanning_weekend() -> TestRes {
         let input = "2013-11-16 00:00,2013-11-17 09:20";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![Year {
                     year: 2013,
@@ -237,9 +247,9 @@ mod tests {
                      2016-01-04 11:16,2016-01-04 11:26\n\
                      2016-01-05 11:26,2016-01-05 11:39\n\
                      2016-01-05 11:39,2016-01-05 11:49\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries),
+            prepare(entries, &DefaultTimeSource),
             Report {
                 years: vec![
                     Year {

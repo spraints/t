@@ -1,4 +1,5 @@
-use crate::entry::{Entry, Time};
+use crate::entry::{Entry, Time, TZ};
+use crate::timesource::TimeSource;
 use std::error::Error;
 use std::io::{self, BufReader, Read, Write};
 
@@ -15,9 +16,9 @@ impl std::fmt::Display for ParseError {
 
 impl Error for ParseError {}
 
-pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
+pub fn parse_entries<R: Read, TS: TimeSource>(r: R, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     let r = BufReader::new(r);
-    let mut parser = Parser::new(r);
+    let mut parser = Parser::new(r, ts.local_offset());
     let mut res = vec![];
     loop {
         match parser.parse_entry()? {
@@ -28,8 +29,11 @@ pub fn parse_entries(r: impl Read) -> Result<Vec<Entry>, Box<dyn Error>> {
     Ok(res)
 }
 
-pub fn parse_entry<R: Read>(r: R) -> Result<(Option<Entry>, R), Box<dyn Error>> {
-    let mut parser = Parser::new(r);
+pub fn parse_entry<R: Read, TS: TimeSource>(
+    r: R,
+    ts: &TS,
+) -> Result<(Option<Entry>, R), Box<dyn Error>> {
+    let mut parser = Parser::new(r, ts.local_offset());
     let entry = parser.parse_entry()?;
     Ok((entry, parser.reader))
 }
@@ -43,14 +47,16 @@ pub fn write_entries(w: &mut impl Write, entries: &[Entry]) -> Result<(), Box<dy
 
 struct Parser<R> {
     reader: R,
+    default_tz: time::UtcOffset,
     line: usize,
     col: usize,
 }
 
 impl<R: Read> Parser<R> {
-    fn new(r: R) -> Parser<R> {
+    fn new(r: R, default_tz: time::UtcOffset) -> Parser<R> {
         Parser {
             reader: r,
+            default_tz,
             line: 1,
             col: 0,
         }
@@ -82,10 +88,19 @@ impl<R: Read> Parser<R> {
                 let hour = self.read_number(10)? as u8;
                 self.read_expected(b':')?;
                 let minute = self.read_number(10)? as u8;
-                let res = |tz| Time::new(year, month, day, hour, minute, tz);
+
                 match self.read()? {
-                    None | Some(b'\n') => Ok(Some((res(None)?, true))),
-                    Some(b',') => Ok(Some((res(None)?, false))),
+                    // EOF or EOL.
+                    None | Some(b'\n') => Ok(Some((
+                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        true,
+                    ))),
+                    // End of current entry.
+                    Some(b',') => Ok(Some((
+                        Time::new(year, month, day, hour, minute, self.implied_tz())?,
+                        false,
+                    ))),
+                    // TZ follows the space.
                     Some(b' ') => {
                         let sign: i16 = match self.read()? {
                             Some(b'-') => -1,
@@ -99,15 +114,23 @@ impl<R: Read> Parser<R> {
                         };
                         let hr_off = self.read_number(10)? as i16;
                         let min_off = self.read_number(10)? as i16;
-                        let res = res(Some(sign * ((hr_off * 60) + min_off)))?;
+
+                        let total_min_off = sign * ((hr_off * 60) + min_off);
+                        let tz = TZ::Known(time::UtcOffset::minutes(total_min_off));
+                        let res = Time::new(year, month, day, hour, minute, tz)?;
+
                         match self.read()? {
+                            // EOF or EOL.
                             None | Some(b'\n') => Ok(Some((res, true))),
+                            // End of current entry.
                             Some(b',') => Ok(Some((res, false))),
+                            // Anything else.
                             Some(x) => {
                                 Err(self.error(format!("expected '\\n' but got '{}'", x as char)))
                             }
                         }
                     }
+                    // Anything else.
                     Some(x) => Err(self.error(format!(
                         "expected newline, comma, or space, but got '{}'",
                         x as char
@@ -115,6 +138,10 @@ impl<R: Read> Parser<R> {
                 }
             }
         }
+    }
+
+    fn implied_tz(&self) -> TZ {
+        TZ::Implied(self.default_tz)
     }
 
     fn read_year(&mut self) -> Result<Option<u16>, Box<dyn Error>> {
@@ -193,7 +220,8 @@ impl<R: Read> Parser<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_entries, write_entries, Entry, Time};
+    use super::{parse_entries, write_entries, Entry, Time, TZ};
+    use crate::timesource::real_time::DefaultTimeSource;
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -205,19 +233,20 @@ mod tests {
         minute: u8,
         offset: Option<i16>,
     ) -> Result<Time, Box<dyn std::error::Error>> {
-        Time::new(year, month, day, hour, minute, offset)
+        let tz = TZ::from(offset, &DefaultTimeSource);
+        Time::new(year, month, day, hour, minute, tz)
     }
 
     #[test]
     fn test_empty() -> TestRes {
-        let actual = parse_entries("".as_bytes())?;
+        let actual = parse_entries("".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(Vec::<Entry>::new(), actual);
         Ok(())
     }
 
     #[test]
     fn test_start_no_tz() -> TestRes {
-        let actual = parse_entries("2020-01-02 12:34\n".as_bytes())?;
+        let actual = parse_entries("2020-01-02 12:34\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             vec![Entry {
                 start: mktime(2020, 1, 2, 12, 34, None)?,
@@ -230,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_start_with_neg_tz() -> TestRes {
-        let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes())?;
+        let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             vec![Entry {
                 start: mktime(2020, 1, 2, 12, 34, Some(-601))?,
@@ -243,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_start_with_pos_tz_and_comma() -> TestRes {
-        let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes())?;
+        let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             vec![Entry {
                 start: mktime(2020, 1, 2, 12, 34, Some(601))?,
@@ -256,7 +285,10 @@ mod tests {
 
     #[test]
     fn test_single_entry() -> TestRes {
-        let actual = parse_entries("2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes())?;
+        let actual = parse_entries(
+            "2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n".as_bytes(),
+            &DefaultTimeSource,
+        )?;
         assert_eq!(
             vec![Entry {
                 start: mktime(2020, 1, 2, 12, 34, Some(-240))?,
@@ -269,8 +301,10 @@ mod tests {
 
     #[test]
     fn test_single_entry_mixed_tz_and_space_between_times() -> TestRes {
-        let actual =
-            parse_entries("2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes())?;
+        let actual = parse_entries(
+            "2020-01-02 12:34 +1000,   2020-01-02 13:34 -0400\n".as_bytes(),
+            &DefaultTimeSource,
+        )?;
         assert_eq!(
             vec![Entry {
                 start: mktime(2020, 1, 2, 12, 34, Some(600))?,
@@ -286,7 +320,7 @@ mod tests {
         let original = "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
                         2020-01-03 09:00,2020-01-03 10:30\n\
                         2020-02-02 11:11,2020-02-02 12:12 -0400\n";
-        let actual = parse_entries(original.as_bytes())?;
+        let actual = parse_entries(original.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(3, actual.len());
 
         // Verify that it round-trips.
@@ -301,7 +335,7 @@ mod tests {
         let original = "2020-01-02 12:34 +1000,2020-01-02 13:34 -0400\n\
                         2020-01-03 09:00,2020-01-03 10:30\n\
                         2020-02-02 11:11\n";
-        let actual = parse_entries(original.as_bytes())?;
+        let actual = parse_entries(original.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(3, actual.len());
         assert_eq!(
             Entry {

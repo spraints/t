@@ -5,6 +5,7 @@ use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
 use t::report;
+use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
@@ -64,6 +65,8 @@ struct DaysArgs {
 #[derive(Options)]
 struct NoArgs {}
 
+static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
+
 fn main() {
     let opts = MainOptions::parse_args_default_or_exit();
     match opts.command {
@@ -98,7 +101,7 @@ fn usage() -> ! {
 
 fn cmd_start() {
     cmd_validate();
-    match start_new_entry().unwrap() {
+    match start_new_entry(&TIME_SOURCE).unwrap() {
         None => println!("Starting work."),
         Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
     };
@@ -106,7 +109,7 @@ fn cmd_start() {
 
 fn cmd_stop() {
     cmd_validate();
-    match stop_current_entry().unwrap() {
+    match stop_current_entry(&TIME_SOURCE).unwrap() {
         Some(minutes) => println!("You just worked for {} minutes.", minutes),
         None => println!("You haven't started working yet!"),
     };
@@ -128,7 +131,7 @@ fn cmd_edit() -> ! {
 }
 
 fn cmd_status(args: StatusArgs) -> bool {
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let working = match entries.last() {
         None => false,
         Some(e) => e.stop.is_none(),
@@ -154,7 +157,7 @@ fn cmd_bitbar(args: BitBarArgs) {
 }
 
 fn show_bitbar_plugin(mut wrapper: &str) {
-    if wrapper == "" {
+    if wrapper.is_empty() {
         wrapper = "t";
     }
     let working = cmd_status(StatusArgs { with_week: true });
@@ -175,7 +178,7 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 fn cmd_today() {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
     print_day_legend();
@@ -184,7 +187,7 @@ fn cmd_today() {
 fn cmd_week() {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
-    let entries = read_last_entries(100).expect("error parsing data file");
+    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let minutes = minutes_between(&entries, start_week, now);
     println!(
         "You have worked for {} minutes since {}.",
@@ -195,8 +198,8 @@ fn cmd_week() {
 }
 
 fn cmd_all() {
-    let entries = read_entries().expect("error parsing data file");
-    for line in report::all::calc(entries, &DEFAULT_SPARKS) {
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
         let week_end = line.start + Duration::days(6);
         print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
         if let Some(analysis) = line.analysis {
@@ -230,9 +233,9 @@ let width = match term_size::dimensions() {
 */
 
 fn cmd_days(args: DaysArgs) {
-    let entries = read_entries().expect("error parsing data file");
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
-    print!("{}", report::days::prepare(entries));
+    print!("{}", report::days::prepare(entries, &TIME_SOURCE));
     print_week_legend();
 }
 
@@ -242,7 +245,7 @@ fn cmd_path() {
 
 fn cmd_validate() {
     let mut maybe_last_entry = None;
-    for (n, entry) in read_entries().unwrap().into_iter().enumerate() {
+    for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
         if let Err(err) = entry.is_valid_after(&maybe_last_entry) {
             println!("{}: {}", n, err);
         }

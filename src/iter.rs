@@ -1,29 +1,34 @@
-use crate::entry::{now, Entry};
+use crate::entry::Entry;
+use crate::timesource::TimeSource;
 use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
-pub fn each_week(entries: Vec<Entry>) -> DaysIterator {
+pub fn each_week<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
     DaysIterator {
         entries,
         days: 7,
         last_date: None,
         next_index: 0,
-        now: now(),
+        now: ts.now(),
     }
 }
 
-fn each_day(entries: Vec<Entry>) -> DaysIterator {
+fn each_day<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
     DaysIterator {
         entries,
         days: 1,
         last_date: None,
         next_index: 0,
-        now: now(),
+        now: ts.now(),
     }
 }
 
-pub fn each_day_in_week(entries: Vec<Entry>, week_start: Date) -> WeekOfDaysIterator {
+pub fn each_day_in_week<TS: TimeSource>(
+    entries: Vec<Entry>,
+    week_start: Date,
+    ts: &TS,
+) -> WeekOfDaysIterator {
     WeekOfDaysIterator {
-        days_iter: each_day(entries),
+        days_iter: each_day(entries, ts),
         week_start,
     }
 }
@@ -55,7 +60,11 @@ impl Iterator for DaysIterator {
                     break;
                 } else {
                     entries.push(entry.clone().finish_if_not(self.now));
-                    if entry.stop_date() >= next_date {
+                    let st = match entry.stop_date() {
+                        None => self.now.date(),
+                        Some(d) => d,
+                    };
+                    if st >= next_date {
                         break;
                     }
                     self.next_index += 1;
@@ -117,8 +126,9 @@ impl Iterator for WeekOfDaysIterator {
 
 #[cfg(test)]
 mod tests {
-    use crate::entry::mock_time::*;
     use crate::parser::parse_entries;
+    use crate::timesource::mock_time::mock_time;
+    use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
     use time::{date, offset, time};
 
@@ -126,13 +136,13 @@ mod tests {
 
     #[test]
     pub fn test_each_week_empty() {
-        let mut i = super::each_week(vec![]);
+        let mut i = super::each_week(vec![], &DefaultTimeSource);
         assert_eq!(None, i.next());
     }
 
     #[test]
     pub fn test_each_day_empty() {
-        let mut i = super::each_day(vec![]);
+        let mut i = super::each_day(vec![], &DefaultTimeSource);
         assert_eq!(None, i.next());
     }
 
@@ -142,8 +152,9 @@ mod tests {
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-08 10:10,2020-08-08 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_week(entries.clone());
+        let mut i = super::each_week(entries.clone(), &DefaultTimeSource);
         assert_eq!(Some((date!(2020 - 08 - 02), entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())
@@ -155,8 +166,9 @@ mod tests {
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-02 10:10,2020-08-02 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_day(entries.clone());
+        let mut i = super::each_day(entries.clone(), &DefaultTimeSource);
         assert_eq!(Some((date!(2020 - 08 - 02), entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())
@@ -168,8 +180,9 @@ mod tests {
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-09-02 10:10,2020-09-02 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_week(entries.clone());
+        let mut i = super::each_week(entries.clone(), &DefaultTimeSource);
         assert_eq!(
             Some((date!(2020 - 08 - 02), entries.drain(..1).collect())),
             i.next()
@@ -188,8 +201,9 @@ mod tests {
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-05 10:10,2020-08-05 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_day(entries.clone());
+        let mut i = super::each_day(entries.clone(), &DefaultTimeSource);
         assert_eq!(
             Some((date!(2020 - 08 - 02), entries.drain(..1).collect())),
             i.next()
@@ -208,8 +222,9 @@ mod tests {
              2020-08-08 10:10,2020-08-09 11:10\n\
              2020-09-02 10:10,2020-09-02 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_week(entries.clone());
+        let mut i = super::each_week(entries.clone(), &DefaultTimeSource);
         assert_eq!(
             Some((
                 date!(2020 - 08 - 02),
@@ -238,8 +253,9 @@ mod tests {
              2020-08-02 12:10,2020-08-03 11:10\n\
              2020-08-05 10:10,2020-08-05 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_day(entries.clone());
+        let mut i = super::each_day(entries.clone(), &DefaultTimeSource);
         assert_eq!(
             Some((
                 date!(2020 - 08 - 02),
@@ -262,8 +278,11 @@ mod tests {
 
     #[test]
     pub fn test_each_week_first_entry_not_sunday() -> TestRes {
-        let entries = parse_entries("2020-08-08 10:10,2020-08-08 11:10\n".as_bytes())?;
-        let mut i = super::each_week(entries.clone());
+        let entries = parse_entries(
+            "2020-08-08 10:10,2020-08-08 11:10\n".as_bytes(),
+            &DefaultTimeSource,
+        )?;
+        let mut i = super::each_week(entries.clone(), &DefaultTimeSource);
         assert_eq!(Some((date!(2020 - 08 - 02), entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())
@@ -271,11 +290,13 @@ mod tests {
 
     #[test]
     fn test_each_week_current_entry_in_progress() -> TestRes {
-        set_mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
-        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes())?;
-        let expected_entries =
-            parse_entries("2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes())?;
-        let mut i = super::each_week(entries.clone());
+        let ts = mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
+        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes(), &ts)?;
+        let expected_entries = parse_entries(
+            "2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes(),
+            &ts,
+        )?;
+        let mut i = super::each_week(entries.clone(), &ts);
         assert_eq!(Some((date!(2020 - 01 - 12), expected_entries)), i.next());
         assert_eq!(None, i.next());
         Ok(())
@@ -290,8 +311,10 @@ mod tests {
              2020-08-05 10:10,2020-08-05 11:10\n\
              2020-08-08 10:10,2020-08-11 11:10\n"
                 .as_bytes(),
+            &DefaultTimeSource,
         )?;
-        let mut i = super::each_day_in_week(entries.clone(), date!(2020 - 08 - 03));
+        let mut i =
+            super::each_day_in_week(entries.clone(), date!(2020 - 08 - 03), &DefaultTimeSource);
         assert_eq!(
             Some((date!(2020 - 08 - 03), vec![entries[1].clone()])),
             i.next()

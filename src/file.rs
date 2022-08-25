@@ -1,5 +1,6 @@
 use crate::entry::Entry;
 use crate::parser::{parse_entries, parse_entry};
+use crate::timesource::TimeSource;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{self, ErrorKind, Read, Seek, SeekFrom, Write};
@@ -9,7 +10,9 @@ const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
 
 #[cfg(test)]
 mod tests {
-    use crate::entry::{mock_time::*, Entry};
+    use crate::entry::Entry;
+    use crate::timesource::mock_time::mock_time;
+    use crate::timesource::real_time::DefaultTimeSource;
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;
@@ -60,27 +63,27 @@ mod tests {
 
     #[test]
     fn test_start_in_new_file() -> TestRes {
-        set_mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!("2020-07-15 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_start_in_empty_file() -> TestRes {
-        set_mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 07 - 15), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!("2020-07-15 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_start_in_file_with_entries() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!(
             "2020-08-06 15:38 -0400,2020-08-06 18:40 -0400\n\
                     2020-08-07 11:03 -0400,2020-08-07 13:07 -0400\n\
@@ -93,30 +96,30 @@ mod tests {
 
     #[test]
     fn test_start_twice() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
-        assert_eq!(Some(0), super::_start_new_entry(fixt.t_data_file())?);
-        set_mock_time(date!(2020 - 08 - 08), time!(10:34), offset!(-04:00));
-        assert_eq!(Some(11), super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
+        assert_eq!(Some(0), super::_start_new_entry(fixt.t_data_file(), &ts)?);
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:34), offset!(-04:00));
+        assert_eq!(Some(11), super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!("2020-08-08 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_start_with_blank_lines() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("blank-lines.csv"))?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!("2020-08-08 10:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_start_with_entry_and_trailing_whitespace() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("entry-with-trailing-blank-lines.csv"))?;
-        assert_eq!(None, super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(None, super::_start_new_entry(fixt.t_data_file(), &ts)?);
         assert_eq!(
             "2020-08-06 14:00 -0400,2020-08-06 17:55 -0400\n\
                     \n\
@@ -129,54 +132,72 @@ mod tests {
 
     #[test]
     fn test_start_when_entry_has_comma() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
-        assert_eq!(Some(1223), super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(1223),
+            super::_start_new_entry(fixt.t_data_file(), &ts)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_start_when_entry_has_no_comma() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 08), time!(10:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-no-comma.csv"))?;
-        assert_eq!(Some(1223), super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(1223),
+            super::_start_new_entry(fixt.t_data_file(), &ts)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_start_when_two_entries_are_pending() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("two-started-entries.csv"))?;
-        assert_eq!(Some(83), super::_start_new_entry(fixt.t_data_file())?);
+        assert_eq!(Some(83), super::_start_new_entry(fixt.t_data_file(), &ts)?);
         Ok(())
     }
 
     #[test]
     fn test_stop_in_new_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            None,
+            super::_stop_current_entry(fixt.t_data_file(), &DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_stop_in_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(None, super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            None,
+            super::_stop_current_entry(fixt.t_data_file(), &DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_stop_in_file_with_complete_entries() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        assert_eq!(None, super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            None,
+            super::_stop_current_entry(fixt.t_data_file(), &DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_stop_when_entry_has_comma() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
-        assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(83),
+            super::_stop_current_entry(fixt.t_data_file(), &ts)?
+        );
         assert_eq!(
             "2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n",
             fixt.read()?
@@ -186,9 +207,12 @@ mod tests {
 
     #[test]
     fn test_stop_when_entry_has_no_comma() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-no-comma.csv"))?;
-        assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(83),
+            super::_stop_current_entry(fixt.t_data_file(), &ts)?
+        );
         assert_eq!(
             "2020-08-07 14:00 -0400,2020-08-07 15:23 -0400\n",
             fixt.read()?
@@ -198,39 +222,45 @@ mod tests {
 
     #[test]
     fn test_stop_when_entry_has_trailing_blank_lines() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-trailing-blank-lines.csv"))?;
-        assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(83),
+            super::_stop_current_entry(fixt.t_data_file(), &ts)?
+        );
         assert_eq!("2020-08-07 14:00,2020-08-07 15:23 -0400\n", fixt.read()?);
         Ok(())
     }
 
     #[test]
     fn test_stop_when_two_entries_are_pending() -> TestRes {
-        set_mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
+        let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("two-started-entries.csv"))?;
-        assert_eq!(Some(83), super::_stop_current_entry(fixt.t_data_file())?);
+        assert_eq!(
+            Some(83),
+            super::_stop_current_entry(fixt.t_data_file(), &ts)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(None, fixt.open()?.read_last_entry()?);
+        assert_eq!(None, fixt.open()?.read_last_entry(&DefaultTimeSource)?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(None, fixt.open()?.read_last_entry()?);
+        assert_eq!(None, fixt.open()?.read_last_entry(&DefaultTimeSource)?);
         Ok(())
     }
 
     #[test]
     fn test_read_last_entry() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        match fixt.open()?.read_last_entry()? {
+        match fixt.open()?.read_last_entry(&DefaultTimeSource)? {
             None => panic!("expected an entry"),
             Some(e) => assert_eq!(
                 "2020-08-07 14:00 -0400,2020-08-07 17:55 -0400\n",
@@ -243,14 +273,20 @@ mod tests {
     #[test]
     fn test_read_last_entries_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_last_entries(10, &DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_last_entries_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_last_entries(10)?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_last_entries(10, &DefaultTimeSource)?
+        );
         Ok(())
     }
 
@@ -258,58 +294,83 @@ mod tests {
     fn test_read_last_entries() -> TestRes {
         let fixt = Fixture::new(Some("thousand-entries.csv"))?;
         assert!(
-            fixt.open()?.read_last_entries(10)?.len() >= 10,
+            fixt.open()?
+                .read_last_entries(10, &DefaultTimeSource)?
+                .len()
+                >= 10,
             "expect at least 10 entries to be returned"
         );
         assert!(
-            fixt.open()?.read_last_entries(100)?.len() >= 100,
+            fixt.open()?
+                .read_last_entries(100, &DefaultTimeSource)?
+                .len()
+                >= 100,
             "expect at least 100 entries to be returned"
         );
         // the file only has 1000 entries, so we can't get more than that.
-        assert_eq!(1000, fixt.open()?.read_last_entries(1000)?.len());
-        assert_eq!(1000, fixt.open()?.read_last_entries(10000)?.len());
+        assert_eq!(
+            1000,
+            fixt.open()?
+                .read_last_entries(1000, &DefaultTimeSource)?
+                .len()
+        );
+        assert_eq!(
+            1000,
+            fixt.open()?
+                .read_last_entries(10000, &DefaultTimeSource)?
+                .len()
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_no_file() -> TestRes {
         let fixt = Fixture::new(None)?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_empty_file() -> TestRes {
         let fixt = Fixture::new(Some("empty.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_blank_file() -> TestRes {
         let fixt = Fixture::new(Some("blank-lines.csv"))?;
-        assert_eq!(empty_entries(), fixt.open()?.read_entries()?);
+        assert_eq!(
+            empty_entries(),
+            fixt.open()?.read_entries(&DefaultTimeSource)?
+        );
         Ok(())
     }
 
     #[test]
     fn test_read_entries_three() -> TestRes {
         let fixt = Fixture::new(Some("three-entries.csv"))?;
-        assert_eq!(3, fixt.open()?.read_entries()?.len());
+        assert_eq!(3, fixt.open()?.read_entries(&DefaultTimeSource)?.len());
         Ok(())
     }
 
     #[test]
     fn test_read_entries_thousand() -> TestRes {
         let fixt = Fixture::new(Some("thousand-entries.csv"))?;
-        assert_eq!(1000, fixt.open()?.read_entries()?.len());
+        assert_eq!(1000, fixt.open()?.read_entries(&DefaultTimeSource)?.len());
         Ok(())
     }
 
     #[test]
     fn test_read_entries_started() -> TestRes {
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
-        let entries = fixt.open()?.read_entries()?;
+        let entries = fixt.open()?.read_entries(&DefaultTimeSource)?;
         assert_eq!(1, entries.len());
         assert!(!entries[0].is_finished());
         Ok(())
@@ -321,29 +382,35 @@ pub fn t_data_file() -> Result<String, std::env::VarError> {
 }
 
 // If there isn't a pending entry, start a new one.
-pub fn start_new_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    _start_new_entry(t_data_file()?)
+pub fn start_new_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+    _start_new_entry(t_data_file()?, ts)
 }
 
-fn _start_new_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Box<dyn Error>> {
-    let (mut f, entry, _, pos) = read_for_update(t_data_file)?;
+fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
+    t_data_file: P,
+    ts: &TS,
+) -> Result<Option<i64>, Box<dyn Error>> {
+    let (mut f, entry, _, pos) = read_for_update(t_data_file, ts)?;
     if let Some(entry) = entry {
         if !entry.is_finished() {
-            return Ok(Some(entry.minutes()));
+            return Ok(Some(entry.minutes(ts)));
         }
     }
     f.seek(SeekFrom::Start(pos))?;
-    write!(f, "{}", Entry::start())?;
+    write!(f, "{}", Entry::start(ts))?;
     Ok(None)
 }
 
 // If there is a pending entry, finish it.
-pub fn stop_current_entry() -> Result<Option<i64>, Box<dyn Error>> {
-    _stop_current_entry(t_data_file()?)
+pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+    _stop_current_entry(t_data_file()?, ts)
 }
 
-fn _stop_current_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Box<dyn Error>> {
-    let (mut f, entry, pos, _) = read_for_update(t_data_file)?;
+fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
+    t_data_file: P,
+    ts: &TS,
+) -> Result<Option<i64>, Box<dyn Error>> {
+    let (mut f, entry, pos, _) = read_for_update(t_data_file, ts)?;
     match entry {
         None => Ok(None),
         Some(entry) => {
@@ -351,9 +418,9 @@ fn _stop_current_entry<P: AsRef<Path>>(t_data_file: P) -> Result<Option<i64>, Bo
                 Ok(None)
             } else {
                 f.seek(SeekFrom::Start(pos))?;
-                let entry = entry.finish();
+                let entry = entry.finish(ts);
                 write!(f, "{}", entry)?;
-                Ok(Some(entry.minutes()))
+                Ok(Some(entry.minutes(ts)))
             }
         }
     }
@@ -363,7 +430,10 @@ type ReadResult = (File, Option<Entry>, u64, u64);
 
 // Get the last entry from the file, along with its start and stop
 // positions.
-fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn Error>> {
+fn read_for_update<P: AsRef<Path>, TS: TimeSource>(
+    t_data_file: P,
+    ts: &TS,
+) -> Result<ReadResult, Box<dyn Error>> {
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)
@@ -377,7 +447,7 @@ fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn
     let mut stop_pos = start_pos;
 
     loop {
-        let (entry, returned) = parse_entry(f)?;
+        let (entry, returned) = parse_entry(f, ts)?;
         f = returned;
         if entry.is_none() {
             break;
@@ -390,16 +460,16 @@ fn read_for_update<P: AsRef<Path>>(t_data_file: P) -> Result<ReadResult, Box<dyn
     Ok((f, last_entry, start_pos, stop_pos))
 }
 
-pub fn read_entries() -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_entries()
+pub fn read_entries<TS: TimeSource>(ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_entries(ts)
 }
 
-pub fn read_last_entry() -> Result<Option<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_last_entry()
+pub fn read_last_entry<TS: TimeSource>(ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_last_entry(ts)
 }
 
-pub fn read_last_entries(n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
-    t_open(t_data_file()?)?.read_last_entries(n)
+pub fn read_last_entries<TS: TimeSource>(n: u64, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+    t_open(t_data_file()?)?.read_last_entries(n, ts)
 }
 
 fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
@@ -417,23 +487,27 @@ struct TFile {
 }
 
 impl TFile {
-    fn read_entries(self) -> Result<Vec<Entry>, Box<dyn Error>> {
+    fn read_entries<TS: TimeSource>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
-            Some(f) => parse_entries(f),
+            Some(f) => parse_entries(f, ts),
             None => Ok(vec![]),
         }
     }
 
-    fn read_last_entry(self) -> Result<Option<Entry>, Box<dyn Error>> {
-        Ok(self.read_last_entries(1)?.into_iter().last())
+    fn read_last_entry<TS: TimeSource>(self, ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
+        Ok(self.read_last_entries(1, ts)?.into_iter().last())
     }
 
-    fn read_last_entries(self, n: u64) -> Result<Vec<Entry>, Box<dyn Error>> {
+    fn read_last_entries<TS: TimeSource>(
+        self,
+        n: u64,
+        ts: &TS,
+    ) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
             None => Ok(vec![]),
             Some(mut f) => {
                 seek_last_entries(&mut f, n)?;
-                parse_entries(f)
+                parse_entries(f, ts)
             }
         }
     }

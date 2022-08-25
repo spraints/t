@@ -1,5 +1,6 @@
-use crate::entry::{local_offset, Entry};
+use crate::entry::Entry;
 use crate::iter::{each_day_in_week, each_week};
+use crate::timesource::TimeSource;
 use std::fmt::Debug;
 use time::{Date, Duration, OffsetDateTime};
 
@@ -20,28 +21,37 @@ pub struct AllAnalysis<T: PartialEq> {
     pub sparks: Vec<Vec<T>>,
 }
 
-pub fn calc<T: PartialEq + Copy>(entries: Vec<Entry>, sparks: &[T]) -> Vec<All<T>> {
-    each_week(entries)
-        .map(|(start, entries)| calc_all_week(start, entries, sparks))
+pub fn calc<T: PartialEq + Copy, TS: TimeSource>(
+    entries: Vec<Entry>,
+    sparks: &[T],
+    ts: &TS,
+) -> Vec<All<T>> {
+    each_week(entries, ts)
+        .map(|(start, entries)| calc_all_week(start, entries, sparks, ts))
         .collect()
 }
 
 const ONE_DAY: Duration = Duration::days(1);
 const SUNDAY_TO_SATURDAY: Duration = Duration::days(6);
 
-fn calc_all_week<T: PartialEq + Copy>(start: Date, entries: Vec<Entry>, sparks: &[T]) -> All<T> {
+fn calc_all_week<T: PartialEq + Copy, TS: TimeSource>(
+    start: Date,
+    entries: Vec<Entry>,
+    sparks: &[T],
+    ts: &TS,
+) -> All<T> {
     let (segments, minutes, analysis) = if entries.len() < 2 {
         let stop = start + SUNDAY_TO_SATURDAY;
         (
             entries.len(),
-            minutes_between_days(&entries, start, stop),
+            minutes_between_days(&entries, start, stop, ts),
             None,
         )
     } else {
-        let entry_minutes_by_day: Vec<Vec<i64>> = each_day_in_week(entries, start)
+        let entry_minutes_by_day: Vec<Vec<i64>> = each_day_in_week(entries, start, ts)
             .filter(|(_, entries)| !entries.is_empty())
             .map(|(start, entries)| {
-                let start = start.midnight().assume_offset(local_offset());
+                let start = start.midnight().assume_offset(ts.local_offset());
                 let stop = start + ONE_DAY;
                 entries
                     .into_iter()
@@ -110,11 +120,16 @@ fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTim
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
 
-fn minutes_between_days(entries: &[Entry], start: Date, stop: Date) -> i64 {
+fn minutes_between_days<TS: TimeSource>(
+    entries: &[Entry],
+    start: Date,
+    stop: Date,
+    ts: &TS,
+) -> i64 {
     minutes_between(
         entries,
-        start.midnight().assume_offset(local_offset()),
-        stop.next_day().midnight().assume_offset(local_offset()),
+        start.midnight().assume_offset(ts.local_offset()),
+        stop.next_day().midnight().assume_offset(ts.local_offset()),
     )
 }
 
@@ -129,6 +144,7 @@ fn sqrtint(n: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use crate::parser::parse_entries;
+    use crate::timesource::real_time::DefaultTimeSource;
     use time::date;
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
@@ -146,9 +162,9 @@ mod tests {
                      2013-09-04 11:16,2013-09-04 11:26\n\
                      2013-09-05 11:26,2013-09-05 11:39\n\
                      2013-09-05 11:39,2013-09-05 11:49\n";
-        let entries = parse_entries(input.as_bytes())?;
+        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
         let sparks = vec![0, 1, 2, 3, 4, 5, 6];
-        let result = super::calc(entries, &sparks);
+        let result = super::calc(entries, &sparks, &DefaultTimeSource);
         assert_eq!(
             result,
             vec![
