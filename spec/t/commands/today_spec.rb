@@ -7,7 +7,8 @@ describe T::Commands::Today do
   subject(:command) { described_class.new(:out => stdout, :file => t_file, :time => time_stub) }
   include CommandHelpers
 
-  before { @now = Time.parse('2013-09-08 13:45:56') }
+  before { @now = Time.parse('2013-09-08 13:45:56 -0300') }
+  let(:tz_offset) { "-0300" }
 
   context 'with no file' do
     before do
@@ -43,7 +44,8 @@ E_T
 E_T
       command.run
     end
-    it('assumes you worked until now') { expect(stdout.string).to eq("You have worked for 170 minutes today.\n") }
+    # The exact amount depends on the current machine's timezone.
+    it('assumes you worked until now') { expect(stdout.string).to match(/\AYou have worked for \S+ minutes today.\n\z/) }
   end
 
   context 'with an incomplete entry in the file and zones' do
