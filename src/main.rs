@@ -14,6 +14,9 @@ const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '�
 struct MainOptions {
     #[options(command)]
     command: Option<TCommand>,
+
+    #[options(help = "show this help message")]
+    help: bool,
 }
 
 #[derive(Options)]
