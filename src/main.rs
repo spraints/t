@@ -41,6 +41,10 @@ enum TCommand {
     All(NoArgs),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
+    #[options(
+        help = "show the amount of time off I took per year, with optional number of minutes per full time week"
+    )]
+    Pto(PtoArgs),
     #[options(help = "show the path to t.csv")]
     Path(NoArgs),
     #[options(help = "check for any formatting errors in t.csv")]
@@ -76,6 +80,14 @@ struct RaceArgs {
 }
 
 #[derive(Options)]
+struct PtoArgs {
+    #[options(free)]
+    full_week: Option<i64>,
+    #[options(help = "show this message")]
+    help: bool,
+}
+
+#[derive(Options)]
 struct NoArgs {}
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
@@ -100,7 +112,7 @@ fn main() {
             TCommand::Days(args) => cmd_days(args),
             //TCommand::CSV(_) => cmd_csv(),
             //TCommand::SVG(_) => cmd_svg(),
-            //TCommand::PTO(_) => cmd_pto(),
+            TCommand::Pto(args) => cmd_pto(args),
             //TCommand::Short(_) => cmd_short(),
             TCommand::Path(_) => cmd_path(),
             TCommand::Validate(_) => cmd_validate(),
@@ -295,6 +307,13 @@ fn cmd_days(args: DaysArgs) {
     let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
     print!("{}", report::days::prepare(entries, &TIME_SOURCE));
+    print_week_legend();
+}
+
+fn cmd_pto(args: PtoArgs) {
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let full_week = args.full_week.unwrap_or(5 * 8 * 60);
+    print!("{}", report::pto::prepare(entries, full_week, &TIME_SOURCE));
     print_week_legend();
 }
 
