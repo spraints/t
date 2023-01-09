@@ -80,7 +80,7 @@ fixt 2013-09.csv \
   assert_diff 2013-09.pto -- pto
 
 fixt 2013-11.csv \
-  assert_diff 2013-09.pto -- pto
+  assert_diff 2013-11.pto -- pto
 
 TODAY="$(date +%Y-%m-%d)"
 EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee" \
