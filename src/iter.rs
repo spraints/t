@@ -1,8 +1,8 @@
-use crate::entry::Entry;
+use crate::entry::TimeEntry;
 use crate::timesource::TimeSource;
 use time::{Date, Duration, OffsetDateTime, Weekday::*};
 
-pub fn each_week<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
+pub fn each_week<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS) -> DaysIterator {
     DaysIterator {
         entries,
         days: 7,
@@ -12,7 +12,7 @@ pub fn each_week<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
     }
 }
 
-fn each_day<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
+fn each_day<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS) -> DaysIterator {
     DaysIterator {
         entries,
         days: 1,
@@ -23,7 +23,7 @@ fn each_day<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> DaysIterator {
 }
 
 pub fn each_day_in_week<TS: TimeSource>(
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     week_start: Date,
     ts: &TS,
 ) -> WeekOfDaysIterator {
@@ -34,7 +34,7 @@ pub fn each_day_in_week<TS: TimeSource>(
 }
 
 pub struct DaysIterator {
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     days: u8,
     last_date: Option<Date>,
     next_index: usize,
@@ -42,7 +42,7 @@ pub struct DaysIterator {
 }
 
 impl Iterator for DaysIterator {
-    type Item = (Date, Vec<Entry>);
+    type Item = (Date, Vec<TimeEntry>);
 
     fn next(&mut self) -> std::option::Option<Self::Item> {
         if self.next_index >= self.entries.len() {
@@ -108,7 +108,7 @@ pub struct WeekOfDaysIterator {
 }
 
 impl Iterator for WeekOfDaysIterator {
-    type Item = (Date, Vec<Entry>);
+    type Item = (Date, Vec<TimeEntry>);
 
     fn next(&mut self) -> std::option::Option<Self::Item> {
         match self.days_iter.next() {
@@ -126,7 +126,7 @@ impl Iterator for WeekOfDaysIterator {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_entries;
+    use crate::parser::parse_time_entries;
     use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     pub fn test_each_week_one_week() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-08 10:10,2020-08-08 11:10\n"
                 .as_bytes(),
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     pub fn test_each_day_one_day() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-02 10:10,2020-08-02 11:10\n"
                 .as_bytes(),
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     pub fn test_each_week_two_weeks() -> TestRes {
-        let mut entries = parse_entries(
+        let mut entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-09-02 10:10,2020-09-02 11:10\n"
                 .as_bytes(),
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     pub fn test_each_day_two_days() -> TestRes {
-        let mut entries = parse_entries(
+        let mut entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-05 10:10,2020-08-05 11:10\n"
                 .as_bytes(),
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     pub fn test_each_week_entry_spans_weeks() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-08 10:10,2020-08-09 11:10\n\
              2020-09-02 10:10,2020-09-02 11:10\n"
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     pub fn test_each_day_entry_spans_days() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-02 10:10,2020-08-02 11:10\n\
              2020-08-02 12:10,2020-08-03 11:10\n\
              2020-08-05 10:10,2020-08-05 11:10\n"
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     pub fn test_each_week_first_entry_not_sunday() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-08 10:10,2020-08-08 11:10\n".as_bytes(),
             &DefaultTimeSource,
         )?;
@@ -291,8 +291,8 @@ mod tests {
     #[test]
     fn test_each_week_current_entry_in_progress() -> TestRes {
         let ts = mock_time(date!(2020 - 01 - 15), time!(11:00), offset!(-04:00));
-        let entries = parse_entries("2020-01-15 10:10 -0400".as_bytes(), &ts)?;
-        let expected_entries = parse_entries(
+        let entries = parse_time_entries("2020-01-15 10:10 -0400".as_bytes(), &ts)?;
+        let expected_entries = parse_time_entries(
             "2020-01-15 10:10 -0400,2020-01-15 11:00 -0400".as_bytes(),
             &ts,
         )?;
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_each_day_in_week() -> TestRes {
-        let entries = parse_entries(
+        let entries = parse_time_entries(
             "2020-08-01 10:10,2020-08-01 11:10\n\
              2020-08-02 10:10,2020-08-03 11:10\n\
              2020-08-04 12:10,2020-08-04 11:10\n\

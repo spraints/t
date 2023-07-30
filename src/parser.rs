@@ -1,7 +1,7 @@
-use crate::entry::{Entry, Time, TZ};
+use crate::entry::{into_time_entries, Entry, Time, TimeEntry, TZ};
 use crate::timesource::TimeSource;
 use std::error::Error;
-use std::io::{self, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
 
 #[derive(Debug)]
 struct ParseError {
@@ -29,7 +29,14 @@ pub fn parse_entries<R: Read, TS: TimeSource>(r: R, ts: &TS) -> Result<Vec<Entry
     Ok(res)
 }
 
-pub fn parse_entry<R: Read, TS: TimeSource>(
+pub fn parse_time_entries<R: Read, TS: TimeSource>(
+    r: R,
+    ts: &TS,
+) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+    Ok(into_time_entries(parse_entries(r, ts)?))
+}
+
+pub fn parse_entry<R: BufRead, TS: TimeSource>(
     r: R,
     ts: &TS,
 ) -> Result<(Option<Entry>, R), Box<dyn Error>> {
@@ -45,14 +52,21 @@ pub fn write_entries(w: &mut impl Write, entries: &[Entry]) -> Result<(), Box<dy
     Ok(())
 }
 
-struct Parser<R> {
+struct Parser<R: BufRead> {
     reader: R,
     default_tz: time::UtcOffset,
     line: usize,
     col: usize,
 }
 
-impl<R: Read> Parser<R> {
+/// Morsel is either an annotation or the start of a time entry.
+enum Morsel {
+    None,
+    Time(Time, bool),
+    Note(String),
+}
+
+impl<R: BufRead> Parser<R> {
     fn new(r: R, default_tz: time::UtcOffset) -> Parser<R> {
         Parser {
             reader: r,
@@ -63,21 +77,45 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_entry(&mut self) -> Result<Option<Entry>, Box<dyn Error>> {
-        match self.parse_time()? {
-            None => Ok(None),
-            Some((start, true)) => Ok(Some(Entry { start, stop: None })),
-            Some((start, false)) => match (self.parse_time())? {
-                None => Ok(Some(Entry { start, stop: None })),
-                Some((stop, _)) => Ok(Some(Entry {
-                    start,
-                    stop: Some(stop),
-                })),
+        match self.parse_morsel()? {
+            Morsel::None => Ok(None),
+            Morsel::Note(note) => Ok(Some(Entry::Note(note))),
+            Morsel::Time(start, true) => Ok(Some(TimeEntry { start, stop: None }.into())),
+            Morsel::Time(start, false) => match (self.parse_time(None))? {
+                None => Ok(Some(TimeEntry { start, stop: None }.into())),
+                Some((stop, _)) => Ok(Some(
+                    TimeEntry {
+                        start,
+                        stop: Some(stop),
+                    }
+                    .into(),
+                )),
             },
         }
     }
 
-    fn parse_time(&mut self) -> Result<Option<(Time, bool)>, Box<dyn Error>> {
-        match self.read_year()? {
+    fn parse_morsel(&mut self) -> Result<Morsel, Box<dyn Error>> {
+        loop {
+            match self.read()? {
+                None => return Ok(Morsel::None),
+                Some(b' ') | Some(b'\n') => (),
+                Some(b'#') => return Ok(Morsel::Note(self.read_line()?)),
+                Some(digit) => {
+                    let digit = self.parse_digit(digit)?;
+                    let year = 1000 * digit + self.read_number(100)?;
+                    let (t, b) = self.parse_time(Some(year))?.unwrap();
+                    return Ok(Morsel::Time(t, b));
+                }
+            }
+        }
+    }
+
+    fn parse_time(&mut self, year: Option<u16>) -> Result<Option<(Time, bool)>, Box<dyn Error>> {
+        let year = match year {
+            Some(y) => Some(y),
+            None => self.read_year()?,
+        };
+        match year {
             None => Ok(None),
             Some(year) => {
                 self.read_expected(b'-')?;
@@ -158,6 +196,15 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn read_line(&mut self) -> Result<String, Box<dyn Error>> {
+        let mut s = String::new();
+        self.reader.read_line(&mut s)?;
+        if let Some('\n') = s.chars().last() {
+            s.pop();
+        }
+        Ok(s)
+    }
+
     fn read_expected(&mut self, expected: u8) -> Result<(), Box<dyn Error>> {
         match self.read()? {
             None => Err(self.error(format!("expected '{}' but got EOF", expected as char))),
@@ -220,8 +267,8 @@ impl<R: Read> Parser<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_entries, write_entries, Entry, Time, TZ};
-    use crate::timesource::real_time::DefaultTimeSource;
+    use super::{parse_entries, write_entries, Time, TimeEntry, TZ};
+    use crate::{entry::Entry, timesource::real_time::DefaultTimeSource};
 
     type TestRes = Result<(), Box<dyn std::error::Error>>;
 
@@ -248,10 +295,10 @@ mod tests {
     fn test_start_no_tz() -> TestRes {
         let actual = parse_entries("2020-01-02 12:34\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            vec![Entry {
+            vec![Entry::Time(TimeEntry {
                 start: mktime(2020, 1, 2, 12, 34, None)?,
                 stop: None,
-            }],
+            })],
             actual
         );
         Ok(())
@@ -261,10 +308,10 @@ mod tests {
     fn test_start_with_neg_tz() -> TestRes {
         let actual = parse_entries("2020-01-02 12:34 -1001\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            vec![Entry {
+            vec![Entry::Time(TimeEntry {
                 start: mktime(2020, 1, 2, 12, 34, Some(-601))?,
                 stop: None,
-            }],
+            })],
             actual
         );
         Ok(())
@@ -274,10 +321,10 @@ mod tests {
     fn test_start_with_pos_tz_and_comma() -> TestRes {
         let actual = parse_entries("2020-01-02 12:34 +1001,\n".as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            vec![Entry {
+            vec![Entry::Time(TimeEntry {
                 start: mktime(2020, 1, 2, 12, 34, Some(601))?,
                 stop: None,
-            }],
+            })],
             actual
         );
         Ok(())
@@ -290,10 +337,10 @@ mod tests {
             &DefaultTimeSource,
         )?;
         assert_eq!(
-            vec![Entry {
+            vec![Entry::Time(TimeEntry {
                 start: mktime(2020, 1, 2, 12, 34, Some(-240))?,
                 stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))?),
-            }],
+            })],
             actual
         );
         Ok(())
@@ -306,10 +353,10 @@ mod tests {
             &DefaultTimeSource,
         )?;
         assert_eq!(
-            vec![Entry {
+            vec![Entry::Time(TimeEntry {
                 start: mktime(2020, 1, 2, 12, 34, Some(600))?,
                 stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))?),
-            }],
+            })],
             actual
         );
         Ok(())
@@ -338,17 +385,44 @@ mod tests {
         let actual = parse_entries(original.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(3, actual.len());
         assert_eq!(
-            Entry {
+            &TimeEntry {
                 start: mktime(2020, 2, 2, 11, 11, None)?,
                 stop: None,
             },
-            actual[2]
+            actual[2].time()
         );
 
         // Verify that it round-trips.
         let mut output = Vec::new();
         write_entries(&mut output, &actual)?;
         assert_eq!(std::str::from_utf8(&output)?, original);
+        Ok(())
+    }
+
+    #[test]
+    fn test_annotations() -> TestRes {
+        let original = "# first\n\
+                        2020-01-02 12:34 -0400,2020-01-02 13:34 -0400\n\
+                        # and another one \n\
+                        2020-01-03 12:34 -0400,2020-01-03 14:00 -0400\n\
+                        # lastly blah blah; no newline, oh the nerve!";
+        let actual = parse_entries(original.as_bytes(), &DefaultTimeSource)?;
+        assert_eq!(
+            vec![
+                Entry::note(" first"),
+                Entry::Time(TimeEntry {
+                    start: mktime(2020, 1, 2, 12, 34, Some(-240))?,
+                    stop: Some(mktime(2020, 1, 2, 13, 34, Some(-240))?),
+                }),
+                Entry::note(" and another one "),
+                Entry::Time(TimeEntry {
+                    start: mktime(2020, 1, 3, 12, 34, Some(-240))?,
+                    stop: Some(mktime(2020, 1, 3, 14, 0, Some(-240))?),
+                }),
+                Entry::note(" lastly blah blah; no newline, oh the nerve!"),
+            ],
+            actual
+        );
         Ok(())
     }
 

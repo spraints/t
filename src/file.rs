@@ -1,9 +1,9 @@
-use crate::entry::Entry;
+use crate::entry::{into_time_entries, Entry, TimeEntry};
 use crate::parser::{parse_entries, parse_entry};
 use crate::timesource::TimeSource;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
-use std::io::{self, ErrorKind, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 const APPROX_LINE_LENGTH_FOR_SEEK: u64 = 50;
@@ -372,7 +372,7 @@ mod tests {
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
         let entries = fixt.open()?.read_entries(&DefaultTimeSource)?;
         assert_eq!(1, entries.len());
-        assert!(!entries[0].is_finished());
+        assert!(!entries[0].time().is_finished());
         Ok(())
     }
 }
@@ -397,7 +397,7 @@ fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
         }
     }
     f.seek(SeekFrom::Start(pos))?;
-    write!(f, "{}", Entry::start(ts))?;
+    write!(f, "{}", TimeEntry::start(ts))?;
     Ok(None)
 }
 
@@ -426,7 +426,7 @@ fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
     }
 }
 
-type ReadResult = (File, Option<Entry>, u64, u64);
+type ReadResult = (File, Option<TimeEntry>, u64, u64);
 
 // Get the last entry from the file, along with its start and stop
 // positions.
@@ -442,26 +442,42 @@ fn read_for_update<P: AsRef<Path>, TS: TimeSource>(
 
     seek_last_entries(&mut f, 2)?;
 
+    let mut r = BufReader::new(f);
     let mut last_entry = None;
-    let mut start_pos = get_pos(&mut f)?;
+    let mut last_time_entry_is_finished = true;
+    let mut start_pos = get_pos(&mut r)?;
     let mut stop_pos = start_pos;
 
     loop {
-        let (entry, returned) = parse_entry(f, ts)?;
-        f = returned;
-        if entry.is_none() {
-            break;
-        }
-        last_entry = entry;
+        let (entry, returned) = parse_entry(r, ts)?;
+        r = returned;
+        match entry {
+            None => break,
+            Some(Entry::Time(te)) => {
+                last_time_entry_is_finished = te.is_finished();
+                last_entry = Some(te);
+            }
+            _ => {
+                last_entry = None;
+            }
+        };
         start_pos = stop_pos;
-        stop_pos = get_pos(&mut f)?;
+        stop_pos = get_pos(&mut r)?;
     }
 
-    Ok((f, last_entry, start_pos, stop_pos))
+    if last_entry.is_none() && !last_time_entry_is_finished {
+        panic!("last time entry is open and annotation comes after it (todo - make this an Err)");
+    }
+
+    Ok((r.into_inner(), last_entry, start_pos, stop_pos))
 }
 
 pub fn read_entries<TS: TimeSource>(ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     t_open(t_data_file()?)?.read_entries(ts)
+}
+
+pub fn read_time_entries<TS: TimeSource>(ts: &TS) -> Result<Vec<TimeEntry>, Box<dyn Error>> {
+    read_entries(ts).map(into_time_entries)
 }
 
 pub fn read_last_entry<TS: TimeSource>(ts: &TS) -> Result<Option<Entry>, Box<dyn Error>> {
@@ -523,7 +539,7 @@ fn seek_last_entries(f: &mut File, n: u64) -> io::Result<()> {
     Ok(())
 }
 
-fn get_pos(f: &mut File) -> io::Result<u64> {
+fn get_pos<S: Seek>(mut f: S) -> io::Result<u64> {
     f.seek(SeekFrom::Current(0))
 }
 

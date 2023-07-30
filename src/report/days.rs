@@ -1,4 +1,4 @@
-use crate::entry::Entry;
+use crate::entry::TimeEntry;
 use crate::iter::{each_day_in_week, each_week};
 use crate::timesource::TimeSource;
 use std::fmt::{self, Display, Formatter};
@@ -33,7 +33,7 @@ struct State {
     month: Month,
 }
 
-pub fn prepare<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
+pub fn prepare<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS) -> Report {
     let mut state = None;
     for (week_start, entries) in each_week(entries, ts) {
         state = Some(prepare_week(state, week_start, entries, ts));
@@ -44,7 +44,7 @@ pub fn prepare<TS: TimeSource>(entries: Vec<Entry>, ts: &TS) -> Report {
 fn prepare_week<TS: TimeSource>(
     state: Option<State>,
     week_start: Date,
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     ts: &TS,
 ) -> State {
     let week = convert_week(week_start, entries, ts);
@@ -108,7 +108,7 @@ fn prepare_week<TS: TimeSource>(
     }
 }
 
-fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> Week {
+fn convert_week<TS: TimeSource>(start: Date, entries: Vec<TimeEntry>, ts: &TS) -> Week {
     let mut minutes = [0; 7];
     for (day_start, entries) in each_day_in_week(entries, start, ts) {
         let i = (day_start - start).whole_days();
@@ -117,7 +117,7 @@ fn convert_week<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> We
     Week { start, minutes }
 }
 
-fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<Entry>, ts: &TS) -> i64 {
+fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<TimeEntry>, ts: &TS) -> i64 {
     let stop = start.next_day().midnight().assume_offset(ts.local_offset());
     let start = start.midnight().assume_offset(ts.local_offset());
     entries
@@ -143,8 +143,8 @@ fn finish(state: Option<State>) -> Report {
 #[cfg(test)]
 mod tests {
     use super::{prepare, Month, Report, Week, Year};
-    use crate::entry::Entry;
-    use crate::parser::parse_entries;
+    use crate::entry::TimeEntry;
+    use crate::parser::parse_time_entries;
     use crate::timesource::mock_time::mock_time;
     use crate::timesource::real_time::DefaultTimeSource;
     use pretty_assertions::assert_eq;
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let entries: Vec<Entry> = vec![];
+        let entries: Vec<TimeEntry> = vec![];
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report { years: vec![] }
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_single_entry() -> TestRes {
         let input = "2013-09-04 11:04,2013-09-04 12:24\n";
-        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
+        let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {
@@ -187,7 +187,7 @@ mod tests {
     fn test_entry_covering_now() -> TestRes {
         let ts = mock_time(date!(2013 - 09 - 04), time!(12:00), offset!(-04:00));
         let input = "2013-09-04 11:04 -0400";
-        let entries = parse_entries(input.as_bytes(), &ts)?;
+        let entries = parse_time_entries(input.as_bytes(), &ts)?;
         assert_eq!(
             prepare(entries, &ts),
             Report {
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn test_entry_spanning_weekend() -> TestRes {
         let input = "2013-11-16 00:00,2013-11-17 09:20";
-        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
+        let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {
@@ -247,7 +247,7 @@ mod tests {
                      2016-01-04 11:16,2016-01-04 11:26\n\
                      2016-01-05 11:26,2016-01-05 11:39\n\
                      2016-01-05 11:39,2016-01-05 11:49\n";
-        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
+        let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
             prepare(entries, &DefaultTimeSource),
             Report {

@@ -1,4 +1,4 @@
-use crate::entry::Entry;
+use crate::entry::TimeEntry;
 use crate::iter::{each_day_in_week, each_week};
 use crate::timesource::TimeSource;
 use std::fmt::Debug;
@@ -22,7 +22,7 @@ pub struct AllAnalysis<T: PartialEq> {
 }
 
 pub fn calc<T: PartialEq + Copy, TS: TimeSource>(
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     sparks: &[T],
     ts: &TS,
 ) -> Vec<All<T>> {
@@ -36,7 +36,7 @@ const SUNDAY_TO_SATURDAY: Duration = Duration::days(6);
 
 fn calc_all_week<T: PartialEq + Copy, TS: TimeSource>(
     start: Date,
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     sparks: &[T],
     ts: &TS,
 ) -> All<T> {
@@ -114,14 +114,14 @@ fn spark_for<T: Copy>(m: i64, max: i64, sparks: &[T]) -> T {
     }
 }
 
-fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
+fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
 
 fn minutes_between_days<TS: TimeSource>(
-    entries: &[Entry],
+    entries: &[TimeEntry],
     start: Date,
     stop: Date,
     ts: &TS,
@@ -143,7 +143,7 @@ fn sqrtint(n: i64) -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::parse_entries;
+    use crate::parser::parse_time_entries;
     use crate::timesource::real_time::DefaultTimeSource;
     use time::date;
 
@@ -162,7 +162,7 @@ mod tests {
                      2013-09-04 11:16,2013-09-04 11:26\n\
                      2013-09-05 11:26,2013-09-05 11:39\n\
                      2013-09-05 11:39,2013-09-05 11:49\n";
-        let entries = parse_entries(input.as_bytes(), &DefaultTimeSource)?;
+        let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         let sparks = vec![0, 1, 2, 3, 4, 5, 6];
         let result = super::calc(entries, &sparks, &DefaultTimeSource);
         assert_eq!(

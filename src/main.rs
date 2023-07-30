@@ -1,6 +1,8 @@
 use gumdrop::Options;
 use std::os::unix::process::CommandExt;
+use t::entry::into_time_entries;
 use t::entry::Entry;
+use t::entry::TimeEntry;
 use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
@@ -159,6 +161,7 @@ fn cmd_edit() -> ! {
 
 fn cmd_status(args: StatusArgs) -> bool {
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
     let working = match entries.last() {
         None => false,
         Some(e) => e.stop.is_none(),
@@ -206,6 +209,7 @@ fn cmd_today() {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
     let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
     print_day_legend();
@@ -215,6 +219,7 @@ fn cmd_week() {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
     let minutes = minutes_between(&entries, start_week, now);
     println!(
         "You have worked for {} minutes since {}.",
@@ -229,6 +234,7 @@ fn cmd_race(args: RaceArgs) {
     let previous_weeks = count.unwrap_or(1);
 
     let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
     let (start_week, now) = extents::this_week();
     let minutes_this_week = minutes_between(&entries, start_week, now);
 
@@ -269,7 +275,7 @@ fn cmd_race(args: RaceArgs) {
 }
 
 fn cmd_all() {
-    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
     for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
         let week_end = line.start + Duration::days(6);
         print!("{} - {}   {:4} min", line.start, week_end, line.minutes);
@@ -304,14 +310,14 @@ let width = match term_size::dimensions() {
 */
 
 fn cmd_days(args: DaysArgs) {
-    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
     print!("{}", report::days::prepare(entries, &TIME_SOURCE));
     print_week_legend();
 }
 
 fn cmd_pto(args: PtoArgs) {
-    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
     let full_week = args.full_week.unwrap_or(5 * 8 * 60);
     print!("{}", report::pto::prepare(entries, full_week, &TIME_SOURCE));
     print_week_legend();
@@ -322,12 +328,19 @@ fn cmd_path() {
 }
 
 fn cmd_validate() {
-    let mut maybe_last_entry = None;
+    let mut last_time_entry = None;
+    let mut last_entry_is_finished = true;
     for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
-        if let Err(err) = entry.is_valid_after(&maybe_last_entry) {
-            println!("{}: {}", n, err);
+        if !last_entry_is_finished {
+            println!("{}: previous entry is not finished", n);
+            last_entry_is_finished = true;
         }
-        maybe_last_entry = Some(entry);
+        if let Entry::Time(te) = entry {
+            if let Err(err) = te.is_valid_after(&last_time_entry) {
+                println!("{}: {}", n, err);
+            }
+            last_time_entry = Some(te);
+        }
     }
 }
 
@@ -336,7 +349,7 @@ fn cmd_now() {
     println!("{}", t);
 }
 
-fn minutes_between(entries: &[Entry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
+fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))

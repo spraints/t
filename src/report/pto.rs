@@ -3,11 +3,11 @@ use std::fmt::{self, Display};
 
 use time::{Date, Duration};
 
-use crate::entry::Entry;
+use crate::entry::TimeEntry;
 use crate::iter::each_week;
 use crate::timesource::TimeSource;
 
-pub fn prepare<TS: TimeSource>(entries: Vec<Entry>, full_week: i64, ts: &TS) -> Report {
+pub fn prepare<TS: TimeSource>(entries: Vec<TimeEntry>, full_week: i64, ts: &TS) -> Report {
     let mut weeks = BTreeMap::new();
     for (week_start, entries) in each_week(entries, ts) {
         let start = week_start.midnight().assume_offset(ts.local_offset());

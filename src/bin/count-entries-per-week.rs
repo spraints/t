@@ -1,5 +1,5 @@
-use t::entry::Entry;
-use t::parser::parse_entries;
+use t::entry::TimeEntry;
+use t::parser::parse_time_entries;
 use t::timesource::real_time::DefaultTimeSource;
 use time::Date;
 use time::Weekday::Sunday;
@@ -7,7 +7,7 @@ use time::Weekday::Sunday;
 fn main() {
     let data_file = std::env::var("T_DATA_FILE").unwrap();
     let f = std::fs::File::open(data_file).unwrap();
-    let entries = parse_entries(f, &DefaultTimeSource).unwrap();
+    let entries = parse_time_entries(f, &DefaultTimeSource).unwrap();
     let mut counter = Counter {
         start: None,
         count: 0,
@@ -53,7 +53,7 @@ impl Counter {
     }
 }
 
-fn check(entry: Entry, counter: Counter) -> Counter {
+fn check(entry: TimeEntry, counter: Counter) -> Counter {
     let sunday = sunday_for(entry);
     match counter.start {
         None => counter.restart(sunday),
@@ -68,7 +68,7 @@ fn check(entry: Entry, counter: Counter) -> Counter {
     }
 }
 
-fn sunday_for(entry: Entry) -> Date {
+fn sunday_for(entry: TimeEntry) -> Date {
     start_of_week(entry.start_date())
 }
 

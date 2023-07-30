@@ -1,9 +1,9 @@
-use crate::entry::Entry;
+use crate::entry::TimeEntry;
 
 pub fn filter_entries(
-    entries: Vec<Entry>,
+    entries: Vec<TimeEntry>,
     filters: Vec<String>,
-) -> Result<Vec<Entry>, &'static str> {
+) -> Result<Vec<TimeEntry>, &'static str> {
     let filter = build_filter(filters)?;
     Ok(entries.into_iter().filter(|e| filter.filter(e)).collect())
 }
@@ -34,7 +34,7 @@ enum Filter {
 }
 
 impl Filter {
-    fn filter(&self, entry: &Entry) -> bool {
+    fn filter(&self, entry: &TimeEntry) -> bool {
         match self {
             Filter::None => true,
             Filter::ByYear(year) => entry.includes_year(*year),

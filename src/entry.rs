@@ -4,13 +4,69 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use time::{self, Date, OffsetDateTime, PrimitiveDateTime};
 
+pub fn into_time_entries(entries: Vec<Entry>) -> Vec<TimeEntry> {
+    entries
+        .into_iter()
+        .filter_map(|e| e.try_into_time())
+        .collect()
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Entry {
+    Time(TimeEntry),
+    Note(String),
+}
+
+impl Entry {
+    pub fn try_into_time(self) -> Option<TimeEntry> {
+        match self {
+            Self::Time(te) => Some(te),
+            _ => None,
+        }
+    }
+
+    pub fn into_time(self) -> TimeEntry {
+        self.try_into_time().unwrap()
+    }
+
+    pub fn try_time(&self) -> Option<&TimeEntry> {
+        match self {
+            Self::Time(te) => Some(te),
+            _ => None,
+        }
+    }
+
+    pub fn time(&self) -> &TimeEntry {
+        self.try_time().unwrap()
+    }
+
+    pub fn note(note: &str) -> Self {
+        Self::Note(note.to_string())
+    }
+}
+
+impl From<TimeEntry> for Entry {
+    fn from(value: TimeEntry) -> Self {
+        Self::Time(value)
+    }
+}
+
+impl Display for Entry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Time(te) => te.fmt(f),
+            Self::Note(s) => write!(f, "# {s}"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct Entry {
+pub struct TimeEntry {
     pub start: Time,
     pub stop: Option<Time>,
 }
 
-impl Entry {
+impl TimeEntry {
     pub fn start<TS: TimeSource>(ts: &TS) -> Self {
         Self {
             start: Time::at(ts.now()),
@@ -84,7 +140,7 @@ impl Entry {
         true
     }
 
-    pub fn is_valid_after(&self, other: &Option<Entry>) -> Result<(), String> {
+    pub fn is_valid_after(&self, other: &Option<TimeEntry>) -> Result<(), String> {
         if let Some(stop) = &self.stop {
             if self.start.wrapped > stop.wrapped {
                 return Err(format!("{} should be before {}", self.start, stop));
@@ -139,7 +195,7 @@ impl Entry {
     }
 }
 
-impl Display for Entry {
+impl Display for TimeEntry {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.start)?;
         if let Some(stop) = &self.stop {
@@ -150,7 +206,7 @@ impl Display for Entry {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Time {
     wrapped: OffsetDateTime,
     implied_tz: bool,
@@ -225,9 +281,15 @@ impl Display for Time {
     }
 }
 
+impl std::fmt::Debug for Time {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Time{{{}}}", self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Entry, Time, TZ};
+    use super::{Time, TimeEntry, TZ};
     use crate::timesource::real_time::DefaultTimeSource;
     use crate::timesource::{mock_time::mock_time, TimeSource};
     use time::{date, offset, time, PrimitiveDateTime};
@@ -250,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_entry_format_with_start() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
             stop: None,
         };
@@ -260,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_entry_format_with_start_and_stop() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -284,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_minutes() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -302,7 +364,7 @@ mod tests {
     #[test]
     fn test_minutes_no_stop() -> TestRes {
         let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(-02:00));
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 1, 7, TZ::from(Some(120), &ts))?,
             stop: None,
         };
@@ -313,7 +375,7 @@ mod tests {
     #[test]
     fn test_minutes_no_stop_no_tz() -> TestRes {
         let ts = mock_time(date!(2020 - 06 - 20), time!(1:55), offset!(+02:00));
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 1, 7, TZ::from(None, &ts))?,
             stop: None,
         };
@@ -323,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -342,7 +404,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_after_stop() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -361,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_before_start() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -380,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_entry_overlaps_start() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -399,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_entry_overlaps_stop() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -418,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_entry_overlaps_start_and_stop() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: Some(Time::new(
                 2020,
@@ -437,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_minutes_between_incomplete() -> TestRes {
-        let entry = Entry {
+        let entry = TimeEntry {
             start: Time::new(2020, 6, 20, 9, 0, TZ::from(Some(0), &DefaultTimeSource))?,
             stop: None,
         };
