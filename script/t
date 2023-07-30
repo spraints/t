@@ -6,13 +6,22 @@ set -o nounset
 ROOT=$(cd "$(dirname "$0")/.."; pwd -P)
 T_RUST="${ROOT}/target/release/t"
 
-if [ -x "$T_RUST" ] && [ $# -gt 0 ] && [ -z "${FORCE_RUBY:-}" ]; then
+t_ruby() {
+  cd "$ROOT"
+  unset RBENV_VERSION
+  exec bin/t "$@"
+}
+
+if [ ! -x "$T_RUST" ] || [ -n "${FORCE_RUBY:-}" ]; then
+  t_ruby "$@"
+fi
+
+if [ $# -gt 0 ]; then
   case "$1" in
-    start|stop|edit|status|bitbar|today|week|all|days|path|validate)
-      exec "$T_RUST" "$@" ;;
+    # todo - fill in commands that the rust version doesn't do yet.
+    todo)
+      t_ruby "$@" ;;
   esac
 fi
 
-cd "$ROOT"
-unset RBENV_VERSION
-exec bin/t "$@"
+exec "$T_RUST" "$@"
