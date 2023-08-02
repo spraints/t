@@ -246,7 +246,12 @@ fn cmd_race(args: RaceArgs) {
         let wstart = start_week - off;
         let wnow = now - off;
         let minutes = minutes_between(&entries, wstart, wnow);
-        println!("{}: {} minutes", wstart.format("%Y-%m-%d"), minutes);
+        println!(
+            "{}: {:4} minutes {}",
+            wstart.format("%Y-%m-%d"),
+            minutes,
+            race_bars(minutes)
+        );
         total_prev_minutes += minutes;
         if minutes_this_week > minutes {
             ahead += 1;
@@ -267,11 +272,16 @@ fn cmd_race(args: RaceArgs) {
         ),
     };
     println!(
-        "{}: {} minutes: {}",
+        "{}: {:4} minutes {}",
         start_week.format("%Y-%m-%d"),
         minutes_this_week,
-        summary
+        race_bars(minutes_this_week),
     );
+    println!("{}", summary);
+}
+
+fn race_bars(n: i64) -> String {
+    std::iter::repeat("|").take((n / 60) as usize).collect()
 }
 
 fn cmd_all() {
