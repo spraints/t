@@ -61,6 +61,8 @@ enum TCommand {
 struct StatusArgs {
     #[options(help = "also calculate the time worked this week so far")]
     with_week: bool,
+    #[options(help = "show this message")]
+    help: bool,
 }
 
 #[derive(Options)]
@@ -69,18 +71,27 @@ struct BitBarArgs {
     wrapper: String,
     #[options(help = "command to invoke")]
     command: String,
+    #[options(help = "show this message")]
+    help: bool,
 }
 
 #[derive(Options)]
 struct DaysArgs {
-    #[options(free)]
+    #[options(
+        free,
+        help = "A year (YYYY) or month (YYYY-MM) to show (default is all)"
+    )]
     filters: Vec<String>,
+    #[options(help = "show this message")]
+    help: bool,
 }
 
 #[derive(Options)]
 struct RaceArgs {
     #[options(help = "number of previous weeks to consider")]
     count: Option<i16>,
+    #[options(help = "show this message")]
+    help: bool,
 }
 
 #[derive(Options)]
@@ -92,7 +103,10 @@ struct PtoArgs {
 }
 
 #[derive(Options)]
-struct NoArgs {}
+struct NoArgs {
+    #[options(help = "show this message")]
+    help: bool,
+}
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
 
@@ -193,7 +207,10 @@ fn show_bitbar_plugin(mut wrapper: &str) {
     if wrapper.is_empty() {
         wrapper = "t";
     }
-    let working = cmd_status(StatusArgs { with_week: true });
+    let working = cmd_status(StatusArgs {
+        with_week: true,
+        help: false,
+    });
     println!("---");
     if working {
         println!(
@@ -233,7 +250,7 @@ fn cmd_week() {
 }
 
 fn cmd_race(args: RaceArgs) {
-    let RaceArgs { count } = args;
+    let RaceArgs { count, help: _ } = args;
     let previous_weeks = count.unwrap_or(1);
 
     let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
