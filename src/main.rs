@@ -156,7 +156,8 @@ fn cmd_start() {
 fn cmd_stop() {
     cmd_validate();
     match stop_current_entry(&TIME_SOURCE).unwrap() {
-        Some(minutes) => println!("You just worked for {} minutes.", minutes),
+        Some((true, minutes)) => println!("You just worked for {} minutes.", minutes),
+        Some((false, minutes)) => println!("You stopped {} minutes ago.", minutes),
         None => println!("You haven't started working yet!"),
     };
 }

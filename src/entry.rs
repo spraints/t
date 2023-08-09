@@ -170,6 +170,11 @@ impl TimeEntry {
         duration.whole_minutes()
     }
 
+    pub fn minutes_since_stop<TS: TimeSource>(&self, ts: &TS) -> Option<i64> {
+        self.stop.as_ref()
+            .and_then(|st| Some((ts.now() - st.wrapped).whole_minutes()))
+    }
+
     pub fn minutes_between(&self, from: OffsetDateTime, to: OffsetDateTime) -> i64 {
         if self.start.wrapped > to {
             return 0;

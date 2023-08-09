@@ -402,25 +402,25 @@ fn _start_new_entry<P: AsRef<Path>, TS: TimeSource>(
 }
 
 // If there is a pending entry, finish it.
-pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<i64>, Box<dyn Error>> {
+pub fn stop_current_entry<TS: TimeSource>(ts: &TS) -> Result<Option<(bool, i64)>, Box<dyn Error>> {
     _stop_current_entry(t_data_file()?, ts)
 }
 
 fn _stop_current_entry<P: AsRef<Path>, TS: TimeSource>(
     t_data_file: P,
     ts: &TS,
-) -> Result<Option<i64>, Box<dyn Error>> {
+) -> Result<Option<(bool, i64)>, Box<dyn Error>> {
     let (mut f, entry, pos, _) = read_for_update(t_data_file, ts)?;
     match entry {
         None => Ok(None),
         Some(entry) => {
             if entry.is_finished() {
-                Ok(None)
+                Ok(Some((false, entry.minutes_since_stop(ts).unwrap())))
             } else {
                 f.seek(SeekFrom::Start(pos))?;
                 let entry = entry.finish(ts);
                 write!(f, "{}", entry)?;
-                Ok(Some(entry.minutes(ts)))
+                Ok(Some((true, entry.minutes(ts))))
             }
         }
     }
