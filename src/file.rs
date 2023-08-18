@@ -540,7 +540,7 @@ fn seek_last_entries(f: &mut File, n: u64) -> io::Result<()> {
 }
 
 fn get_pos<S: Seek>(mut f: S) -> io::Result<u64> {
-    f.seek(SeekFrom::Current(0))
+    f.stream_position()
 }
 
 fn read_to(f: &mut File, c: u8) -> io::Result<()> {

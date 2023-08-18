@@ -81,7 +81,7 @@ fn calc_all_week<T: PartialEq + Copy, TS: TimeSource>(
             let diff = m - mean;
             sumsq += diff * diff;
         }
-        let stddev = sqrtint(sumsq / (segments as i64 - 1)) as i64;
+        let stddev = sqrtint(sumsq / (segments as i64 - 1));
         (
             segments,
             total_minutes,

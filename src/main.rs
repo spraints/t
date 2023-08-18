@@ -302,7 +302,7 @@ fn cmd_race(args: RaceArgs) {
 }
 
 fn race_bars(n: i64) -> String {
-    std::iter::repeat("|").take((n / 60) as usize).collect()
+    "|".repeat((n / 60) as usize)
 }
 
 fn cmd_all() {
