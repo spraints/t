@@ -224,6 +224,8 @@ fn show_bitbar_plugin(mut wrapper: &str) {
             wrapper
         );
     }
+    println!("---");
+    show_race(4, " | font=Monaco");
 }
 
 fn cmd_today() {
@@ -252,8 +254,10 @@ fn cmd_week() {
 
 fn cmd_race(args: RaceArgs) {
     let RaceArgs { count, help: _ } = args;
-    let previous_weeks = count.unwrap_or(1);
+    show_race(count.unwrap_or(1), "");
+}
 
+fn show_race(previous_weeks: i16, suffix: &str) {
     let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = into_time_entries(entries);
     let (start_week, now) = extents::this_week();
@@ -268,10 +272,11 @@ fn cmd_race(args: RaceArgs) {
         let wnow = now - off;
         let minutes = minutes_between(&entries, wstart, wnow);
         println!(
-            "{}: {:4} minutes {}",
+            "{}: {:4} minutes {}{}",
             wstart.format("%Y-%m-%d"),
             minutes,
-            race_bars(minutes)
+            race_bars(minutes),
+            suffix,
         );
         total_prev_minutes += minutes;
         if minutes_this_week > minutes {
@@ -293,16 +298,17 @@ fn cmd_race(args: RaceArgs) {
         ),
     };
     println!(
-        "{}: {:4} minutes {}",
+        "{}: {:4} minutes {}{}",
         start_week.format("%Y-%m-%d"),
         minutes_this_week,
         race_bars(minutes_this_week),
+        suffix,
     );
     println!("{}", summary);
 }
 
 fn race_bars(n: i64) -> String {
-    "|".repeat((n / 60) as usize)
+    "▇".repeat((n / 60) as usize)
 }
 
 fn cmd_all() {
