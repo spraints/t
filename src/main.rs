@@ -82,6 +82,8 @@ struct DaysArgs {
         help = "A year (YYYY) or month (YYYY-MM) to show (default is all)"
     )]
     filters: Vec<String>,
+    #[options(help = "generate a png graph in the named file")]
+    graph: Option<String>,
     #[options(help = "show this message")]
     help: bool,
 }
@@ -349,8 +351,16 @@ let width = match term_size::dimensions() {
 fn cmd_days(args: DaysArgs) {
     let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
     let entries = filter_entries(entries, args.filters).expect("unusable filter");
-    print!("{}", report::days::prepare(entries, &TIME_SOURCE));
-    print_week_legend();
+    let report = report::days::prepare(entries, &TIME_SOURCE);
+    match args.graph {
+        None => {
+            print!("{}", report);
+            print_week_legend();
+        }
+        Some(name) => {
+            report::daysgraph::plot(name, report);
+        }
+    };
 }
 
 fn cmd_pto(args: PtoArgs) {
