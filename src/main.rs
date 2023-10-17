@@ -38,9 +38,11 @@ enum TCommand {
     #[options(help = "show time worked this week")]
     Week(NoArgs),
     #[options(help = "compare my current progress this week against previous weeks")]
-    Race(RaceArgs),
+    Race(WeekCount),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+    #[options(help = "show info about the length of breaks in the last several weeks")]
+    Breaks(WeekCount),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
     #[options(
@@ -87,7 +89,7 @@ struct DaysArgs {
 }
 
 #[derive(Options)]
-struct RaceArgs {
+struct WeekCount {
     #[options(help = "number of previous weeks to consider")]
     count: Option<i16>,
     #[options(help = "show this message")]
@@ -126,6 +128,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::Race(args) => cmd_race(args),
             TCommand::All(_) => cmd_all(),
+            TCommand::Breaks(args) => cmd_breaks(args),
             //TCommand::Punchcard(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
             //TCommand::CSV(_) => cmd_csv(),
@@ -252,8 +255,12 @@ fn cmd_week() {
     print_week_legend();
 }
 
-fn cmd_race(args: RaceArgs) {
-    let RaceArgs { count, help: _ } = args;
+fn cmd_breaks(args: WeekCount) {
+    println!("todo {}", args.count.unwrap_or(1));
+}
+
+fn cmd_race(args: WeekCount) {
+    let WeekCount { count, help: _ } = args;
     show_race(count.unwrap_or(1), "");
 }
 
