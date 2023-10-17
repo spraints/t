@@ -168,7 +168,7 @@ fn cmd_edit() -> ! {
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
-            .arg("-c")
+            .arg("-xc")
             .arg(format!("{} \"$@\"; t validate", editor))
             .arg(editor)
             .arg(path)
