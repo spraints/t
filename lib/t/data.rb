@@ -13,7 +13,7 @@ module T
     def entries
       @entries ||=
         if File.exists?(@path)
-          File.readlines(@path).map { |line| Entry.new(*line.chomp.split(',')) }
+          File.readlines(@path).grep_v(/^#/).map { |line| Entry.new(*line.chomp.split(',')) }
         else
           []
         end
