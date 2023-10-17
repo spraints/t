@@ -41,7 +41,7 @@ enum TCommand {
     Race(WeekCount),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
-    #[options(help = "show info about the length of breaks in the last several weeks")]
+    #[options(help = "show info about the length of breaks (default shows all weeks)")]
     Breaks(WeekCount),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
@@ -256,7 +256,25 @@ fn cmd_week() {
 }
 
 fn cmd_breaks(args: WeekCount) {
-    println!("todo {}", args.count.unwrap_or(1));
+    let WeekCount { count, help: _ } = args;
+    let (start_week, now) = extents::this_week();
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
+    let entries = match count {
+        Some(c) => {
+            let earliest = start_week - Duration::weeks(-c as i64);
+            entries
+                .into_iter()
+                .filter(|e| e.is_after(earliest))
+                .collect()
+        }
+        None => entries,
+    };
+    println!(
+        "todo: show stats from {} entries (force things to be used {})",
+        entries.len(),
+        now
+    );
 }
 
 fn cmd_race(args: WeekCount) {
