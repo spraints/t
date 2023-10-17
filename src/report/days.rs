@@ -6,25 +6,25 @@ use time::{Date, Duration};
 
 #[derive(Debug, PartialEq)]
 pub struct Report {
-    years: Vec<Year>,
+    pub years: Vec<Year>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Year {
-    year: i32,
-    months: Vec<Month>,
+pub struct Year {
+    pub year: i32,
+    pub months: Vec<Month>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Month {
-    month: u8,
-    weeks: Vec<Week>,
+pub struct Month {
+    pub month: u8,
+    pub weeks: Vec<Week>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Week {
-    start: Date,
-    minutes: [i64; 7],
+pub struct Week {
+    pub start: Date,
+    pub minutes: [i64; 7],
 }
 
 struct State {
