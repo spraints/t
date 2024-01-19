@@ -259,9 +259,7 @@ impl StatusUI for BitBarStatusUI {
         if args.with_week {
             let (start_week, now) = extents::this_week();
             let minutes = minutes_between(&entries, start_week, now);
-            let fraction = HOUR_EMOJI.len() * minutes as usize / MY_FULL_WEEK as usize;
-            let emoji = HOUR_EMOJI.get(fraction).unwrap_or(&CHECK_EMOJI);
-            format!("{status}{emoji}")
+            format!("{status}{}", week_progress_emoji(minutes))
         } else {
             format!("{status}")
         }
@@ -312,8 +310,9 @@ fn show_race(previous_weeks: i16, suffix: &str) {
         let wnow = now - off;
         let minutes = minutes_between(&entries, wstart, wnow);
         println!(
-            "{}: {:4} minutes {}{}",
+            "{}: {} {:4} minutes {}{}",
             wstart.format("%Y-%m-%d"),
+            week_progress_emoji(minutes),
             minutes,
             race_bars(minutes),
             suffix,
@@ -338,8 +337,9 @@ fn show_race(previous_weeks: i16, suffix: &str) {
         ),
     };
     println!(
-        "{}: {:4} minutes {}{}",
+        "{}: {} {:4} minutes {}{}",
         start_week.format("%Y-%m-%d"),
+        week_progress_emoji(minutes_this_week),
         minutes_this_week,
         race_bars(minutes_this_week),
         suffix,
@@ -440,6 +440,11 @@ fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDat
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
+}
+
+fn week_progress_emoji(minutes: i64) -> char {
+    let fraction = HOUR_EMOJI.len() * minutes as usize / MY_FULL_WEEK as usize;
+    HOUR_EMOJI.get(fraction).copied().unwrap_or(CHECK_EMOJI)
 }
 
 fn print_day_legend() {
