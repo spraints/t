@@ -12,6 +12,14 @@ use time::{Duration, OffsetDateTime};
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
 
+const HOUR_EMOJI: [char; 12] = [
+    '🕛', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚',
+];
+const CHECK_EMOJI: char = '✅';
+
+const FULL_WEEK: i64 = 5 * 8 * 60; // 5 day, 8 hours per day, 60 minutes per hour.
+const MY_FULL_WEEK: i64 = 2000; // This is my goal.
+
 #[derive(Options)]
 struct MainOptions {
     #[options(command)]
@@ -119,7 +127,7 @@ fn main() {
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
             TCommand::Status(args) => {
-                cmd_status(args);
+                cmd_status(args, CLIStatusUI);
             }
             TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
@@ -177,22 +185,34 @@ fn cmd_edit() -> ! {
     std::process::exit(1)
 }
 
-fn cmd_status(args: StatusArgs) -> bool {
+fn cmd_status(args: StatusArgs, ui: impl StatusUI) -> bool {
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let entries = into_time_entries(entries);
     let working = match entries.last() {
         None => false,
         Some(e) => e.stop.is_none(),
     };
-    let status = if working { "WORKING" } else { "NOT working" };
-    if args.with_week {
-        let (start_week, now) = extents::this_week();
-        let minutes = minutes_between(&entries, start_week, now);
-        println!("{} ({})", status, minutes);
-    } else {
-        println!("{}", status);
-    }
+    println!("{}", ui.format(working, &entries, &args));
     working
+}
+
+trait StatusUI {
+    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String;
+}
+
+struct CLIStatusUI;
+
+impl StatusUI for CLIStatusUI {
+    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String {
+        let status = if working { "WORKING" } else { "NOT working" };
+        if args.with_week {
+            let (start_week, now) = extents::this_week();
+            let minutes = minutes_between(&entries, start_week, now);
+            format!("{status} ({minutes})")
+        } else {
+            format!("{status}")
+        }
+    }
 }
 
 fn cmd_bitbar(args: BitBarArgs) {
@@ -208,10 +228,13 @@ fn show_bitbar_plugin(mut wrapper: &str) {
     if wrapper.is_empty() {
         wrapper = "t";
     }
-    let working = cmd_status(StatusArgs {
-        with_week: true,
-        help: false,
-    });
+    let working = cmd_status(
+        StatusArgs {
+            with_week: true,
+            help: false,
+        },
+        BitBarStatusUI,
+    );
     println!("---");
     if working {
         println!(
@@ -226,6 +249,23 @@ fn show_bitbar_plugin(mut wrapper: &str) {
     }
     println!("---");
     show_race(4, " | font=Monaco");
+}
+
+struct BitBarStatusUI;
+
+impl StatusUI for BitBarStatusUI {
+    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String {
+        let status = if working { "👔" } else { "😴" };
+        if args.with_week {
+            let (start_week, now) = extents::this_week();
+            let minutes = minutes_between(&entries, start_week, now);
+            let fraction = HOUR_EMOJI.len() * minutes as usize / MY_FULL_WEEK as usize;
+            let emoji = HOUR_EMOJI.get(fraction).unwrap_or(&CHECK_EMOJI);
+            format!("{status}{emoji}")
+        } else {
+            format!("{status}")
+        }
+    }
 }
 
 fn cmd_today() {
@@ -355,7 +395,7 @@ fn cmd_days(args: DaysArgs) {
 
 fn cmd_pto(args: PtoArgs) {
     let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
-    let full_week = args.full_week.unwrap_or(5 * 8 * 60);
+    let full_week = args.full_week.unwrap_or(FULL_WEEK);
     print!("{}", report::pto::prepare(entries, full_week, &TIME_SOURCE));
     print_week_legend();
 }
