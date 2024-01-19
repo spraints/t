@@ -19,7 +19,7 @@ fi
 if [ $# -gt 0 ]; then
   case "$1" in
     # todo - fill in commands that the rust version doesn't do yet.
-    todo)
+    punchcard)
       t_ruby "$@" ;;
   esac
 fi
