@@ -126,9 +126,7 @@ fn main() {
             TCommand::Start(_) => cmd_start(),
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
-            TCommand::Status(args) => {
-                cmd_status(args, CLIStatusUI);
-            }
+            TCommand::Status(args) => cmd_status(args),
             TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
@@ -185,32 +183,47 @@ fn cmd_edit() -> ! {
     std::process::exit(1)
 }
 
-fn cmd_status(args: StatusArgs, ui: impl StatusUI) -> bool {
+fn cmd_status(args: StatusArgs) {
+    let ui: CLIStatusUI = args.into();
+    show_status(ui);
+}
+
+fn show_status(ui: impl StatusUI) -> bool {
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let entries = into_time_entries(entries);
     let working = match entries.last() {
         None => false,
         Some(e) => e.stop.is_none(),
     };
-    println!("{}", ui.format(working, &entries, &args));
+    println!("{}", ui.format(working, &entries));
     working
 }
 
 trait StatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String;
+    fn format(&self, working: bool, entries: &[TimeEntry]) -> String;
 }
 
-struct CLIStatusUI;
+struct CLIStatusUI {
+    with_week: bool,
+}
 
 impl StatusUI for CLIStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String {
+    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
         let status = if working { "WORKING" } else { "NOT working" };
-        if args.with_week {
+        if self.with_week {
             let (start_week, now) = extents::this_week();
             let minutes = minutes_between(&entries, start_week, now);
             format!("{status} ({minutes})")
         } else {
             format!("{status}")
+        }
+    }
+}
+
+impl From<StatusArgs> for CLIStatusUI {
+    fn from(args: StatusArgs) -> Self {
+        CLIStatusUI {
+            with_week: args.with_week,
         }
     }
 }
@@ -228,13 +241,7 @@ fn show_bitbar_plugin(mut wrapper: &str) {
     if wrapper.is_empty() {
         wrapper = "t";
     }
-    let working = cmd_status(
-        StatusArgs {
-            with_week: true,
-            help: false,
-        },
-        BitBarStatusUI,
-    );
+    let working = show_status(BitBarStatusUI);
     println!("---");
     if working {
         println!(
@@ -254,15 +261,11 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 struct BitBarStatusUI;
 
 impl StatusUI for BitBarStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry], args: &StatusArgs) -> String {
+    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
         let status = if working { "👔" } else { "😴" };
-        if args.with_week {
-            let (start_week, now) = extents::this_week();
-            let minutes = minutes_between(&entries, start_week, now);
-            format!("{status}{}", week_progress_emoji(minutes))
-        } else {
-            format!("{status}")
-        }
+        let (start_week, now) = extents::this_week();
+        let minutes = minutes_between(&entries, start_week, now);
+        format!("{status}{}", week_progress_emoji(minutes))
     }
 }
 
