@@ -182,10 +182,11 @@ mod tests {
 
     #[test]
     fn test_stop_in_file_with_complete_entries() -> TestRes {
+        let ts = mock_time(date!(2020 - 08 - 07), time!(23:23), offset!(-04:00));
         let fixt = Fixture::new(Some("three-entries.csv"))?;
         assert_eq!(
-            None,
-            super::_stop_current_entry(fixt.t_data_file(), &DefaultTimeSource)?
+            Some((false, 328)),
+            super::_stop_current_entry(fixt.t_data_file(), &ts)?
         );
         Ok(())
     }
@@ -195,7 +196,7 @@ mod tests {
         let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-with-comma.csv"))?;
         assert_eq!(
-            Some(83),
+            Some((true, 83)),
             super::_stop_current_entry(fixt.t_data_file(), &ts)?
         );
         assert_eq!(
@@ -210,7 +211,7 @@ mod tests {
         let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-no-comma.csv"))?;
         assert_eq!(
-            Some(83),
+            Some((true, 83)),
             super::_stop_current_entry(fixt.t_data_file(), &ts)?
         );
         assert_eq!(
@@ -225,7 +226,7 @@ mod tests {
         let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("started-trailing-blank-lines.csv"))?;
         assert_eq!(
-            Some(83),
+            Some((true, 83)),
             super::_stop_current_entry(fixt.t_data_file(), &ts)?
         );
         assert_eq!("2020-08-07 14:00,2020-08-07 15:23 -0400\n", fixt.read()?);
@@ -237,7 +238,7 @@ mod tests {
         let ts = mock_time(date!(2020 - 08 - 07), time!(15:23), offset!(-04:00));
         let fixt = Fixture::new(Some("two-started-entries.csv"))?;
         assert_eq!(
-            Some(83),
+            Some((true, 83)),
             super::_stop_current_entry(fixt.t_data_file(), &ts)?
         );
         Ok(())

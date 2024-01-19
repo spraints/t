@@ -23,7 +23,7 @@ assert_out() {
   shift # --
   echo T "$@"
   local actual="$($COMMAND "$@")"
-  if ! echo "$actual" | grep -q "$expected"; then
+  if ! echo "$actual" | grep -q -E "$expected"; then
     echo FAIL
     echo expected to find:
     echo "$expected"
@@ -60,10 +60,10 @@ assert_out "Starting work" -- start
 assert_out "You already started working," -- start
 
 assert_out "WORKING" -- status
-assert_out "WORKING (0)" -- status --with-week
+assert_out "WORKING \\(0\\)" -- status --with-week
 
-assert_out "You just worked for " -- stop
-assert_out "You haven't started working yet" -- stop
+assert_out "You just worked for \\d minutes" -- stop
+assert_out "You haven't started working yet|You stopped \\d minutes ago" -- stop
 
 assert_out "NOT working" -- status
 
