@@ -212,10 +212,10 @@ impl StatusUI for CLIStatusUI {
         let status = if working { "WORKING" } else { "NOT working" };
         if self.with_week {
             let (start_week, now) = extents::this_week();
-            let minutes = minutes_between(&entries, start_week, now);
+            let minutes = minutes_between(entries, start_week, now);
             format!("{status} ({minutes})")
         } else {
-            format!("{status}")
+            status.to_string()
         }
     }
 }
@@ -264,7 +264,7 @@ impl StatusUI for BitBarStatusUI {
     fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
         let status = if working { "👔" } else { "😴" };
         let (start_week, now) = extents::this_week();
-        let minutes = minutes_between(&entries, start_week, now);
+        let minutes = minutes_between(entries, start_week, now);
         format!("{status}{}", week_progress_emoji(minutes))
     }
 }
