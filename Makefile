@@ -21,11 +21,11 @@ rspec:
 
 .PHONY: integration-ruby
 integration-ruby:
-	time env COMMAND=bin/t bash test.sh
+	time env COMMAND=bin/t MODE=ruby bash test.sh
 
 .PHONY:integration-rust
 integration-rust: target/debug/t
-	time env COMMAND=target/debug/t bash test.sh
+	time env COMMAND=target/debug/t MODE=rust bash test.sh
 
 target/debug/t: $(SRCS) Cargo.toml Cargo.lock
 	cargo build

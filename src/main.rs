@@ -85,6 +85,8 @@ struct BitBarArgs {
 
 #[derive(Options)]
 struct DaysArgs {
+    #[options(help = "include monthly and yearly totals")]
+    summary: bool,
     #[options(
         free,
         help = "A year (YYYY) or month (YYYY-MM) to show (default is all)"
@@ -92,6 +94,17 @@ struct DaysArgs {
     filters: Vec<String>,
     #[options(help = "show this message")]
     help: bool,
+}
+
+impl Into<(Vec<String>, report::days::Options)> for DaysArgs {
+    fn into(self) -> (Vec<String>, report::days::Options) {
+        (
+            self.filters,
+            report::days::Options {
+                include_totals: self.summary,
+            },
+        )
+    }
 }
 
 #[derive(Options)]
@@ -390,9 +403,12 @@ let width = match term_size::dimensions() {
 */
 
 fn cmd_days(args: DaysArgs) {
+    let (filters, opts) = args.into();
+
     let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
-    let entries = filter_entries(entries, args.filters).expect("unusable filter");
-    print!("{}", report::days::prepare(entries, &TIME_SOURCE));
+    let entries = filter_entries(entries, filters).expect("unusable filter");
+
+    print!("{}", report::days::prepare(entries, &TIME_SOURCE, opts));
     print_week_legend();
 }
 

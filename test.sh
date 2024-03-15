@@ -12,6 +12,16 @@ export T_DATA_FILE="${TMPDIR}/test-sh-t.csv"
 mkdir -p "$TMPDIR"
 rm -f "$T_DATA_FILE"
 
+case "$MODE" in
+  ruby)
+    days_args=
+    ;;
+  *)
+    # Assume we're using rust
+    days_args=-s
+    ;;
+esac
+
 fixt() {
   local f="$1"; shift
   T_DATA_FILE="$FIXTURES/$f" "$@"
@@ -71,10 +81,10 @@ fixt 2013-09.csv \
   assert_diff 2013-09.all -- all
 
 fixt 2013-09.csv \
-  assert_diff 2013-09.days -- days
+  assert_diff 2013-09.days -- days $days_args
 
 fixt 2013-11.csv \
-  assert_diff 2013-11.days -- days
+  assert_diff 2013-11.days -- days $days_args
 
 fixt 2013-09.csv \
   assert_diff 2013-09.pto -- pto

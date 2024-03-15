@@ -7,6 +7,12 @@ use time::{Date, Duration};
 #[derive(Debug, PartialEq)]
 pub struct Report {
     years: Vec<Year>,
+    include_totals: bool,
+}
+
+#[derive(Debug, PartialEq)]
+struct ReportData {
+    years: Vec<Year>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -28,17 +34,21 @@ struct Week {
 }
 
 struct State {
-    report: Report,
+    report: ReportData,
     year: Year,
     month: Month,
 }
 
-pub fn prepare<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS) -> Report {
+pub struct Options {
+    pub include_totals: bool,
+}
+
+pub fn prepare<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS, opts: Options) -> Report {
     let mut state = None;
     for (week_start, entries) in each_week(entries, ts) {
         state = Some(prepare_week(state, week_start, entries, ts));
     }
-    finish(state)
+    finish(state, opts)
 }
 
 fn prepare_week<TS: TimeSource>(
@@ -59,7 +69,7 @@ fn prepare_week<TS: TimeSource>(
                 months: vec![],
             };
             State {
-                report: Report { years: vec![] },
+                report: ReportData { years: vec![] },
                 year,
                 month,
             }
@@ -125,8 +135,8 @@ fn minutes_on_day<TS: TimeSource>(start: Date, entries: Vec<TimeEntry>, ts: &TS)
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
 
-fn finish(state: Option<State>) -> Report {
-    match state {
+fn finish(state: Option<State>, opts: Options) -> Report {
+    let years = match state {
         Some(State {
             mut report,
             mut year,
@@ -134,15 +144,19 @@ fn finish(state: Option<State>) -> Report {
         }) => {
             year.months.push(month);
             report.years.push(year);
-            report
+            report.years
         }
-        None => Report { years: vec![] },
+        None => vec![],
+    };
+    Report {
+        years,
+        include_totals: opts.include_totals,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{prepare, Month, Report, Week, Year};
+    use super::{prepare, Month, Options, Report, Week, Year};
     use crate::entry::TimeEntry;
     use crate::parser::parse_time_entries;
     use crate::timesource::mock_time::mock_time;
@@ -156,8 +170,17 @@ mod tests {
     fn test_empty() {
         let entries: Vec<TimeEntry> = vec![];
         assert_eq!(
-            prepare(entries, &DefaultTimeSource),
-            Report { years: vec![] }
+            prepare(
+                entries,
+                &DefaultTimeSource,
+                Options {
+                    include_totals: true
+                }
+            ),
+            Report {
+                include_totals: true,
+                years: vec![]
+            }
         );
     }
 
@@ -166,8 +189,15 @@ mod tests {
         let input = "2013-09-04 11:04,2013-09-04 12:24\n";
         let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries, &DefaultTimeSource),
+            prepare(
+                entries,
+                &DefaultTimeSource,
+                Options {
+                    include_totals: true
+                }
+            ),
             Report {
+                include_totals: true,
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -189,8 +219,15 @@ mod tests {
         let input = "2013-09-04 11:04 -0400";
         let entries = parse_time_entries(input.as_bytes(), &ts)?;
         assert_eq!(
-            prepare(entries, &ts),
+            prepare(
+                entries,
+                &ts,
+                Options {
+                    include_totals: true
+                }
+            ),
             Report {
+                include_totals: true,
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -211,8 +248,15 @@ mod tests {
         let input = "2013-11-16 00:00,2013-11-17 09:20";
         let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries, &DefaultTimeSource),
+            prepare(
+                entries,
+                &DefaultTimeSource,
+                Options {
+                    include_totals: false
+                }
+            ),
             Report {
+                include_totals: false,
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -249,8 +293,15 @@ mod tests {
                      2016-01-05 11:39,2016-01-05 11:49\n";
         let entries = parse_time_entries(input.as_bytes(), &DefaultTimeSource)?;
         assert_eq!(
-            prepare(entries, &DefaultTimeSource),
+            prepare(
+                entries,
+                &DefaultTimeSource,
+                Options {
+                    include_totals: true
+                }
+            ),
             Report {
+                include_totals: true,
                 years: vec![
                     Year {
                         year: 2015,
@@ -318,14 +369,18 @@ impl Display for Report {
                     )?;
                     accum(&mut month_tot, &week.minutes);
                 }
-                write_report_line(
-                    f,
-                    format!("{:04}-{:02}", year.year, month.month),
-                    &month_tot,
-                )?;
+                if self.include_totals {
+                    write_report_line(
+                        f,
+                        format!("{:04}-{:02}", year.year, month.month),
+                        &month_tot,
+                    )?;
+                }
                 accum(&mut year_tot, &month_tot);
             }
-            write_report_line(f, format!("{:04}", year.year), &year_tot)?;
+            if self.include_totals {
+                write_report_line(f, format!("{:04}", year.year), &year_tot)?;
+            }
         }
         Ok(())
     }
