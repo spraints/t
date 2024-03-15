@@ -92,9 +92,11 @@ fixt 2013-09.csv \
 fixt 2013-11.csv \
   assert_diff 2013-11.pto -- pto
 
+echo T edit
 TODAY="$(date +%Y-%m-%d)"
 EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee" \
   $COMMAND edit >/dev/null
+echo PASS
 
 assert_out "You have worked for 130 minutes today." -- today
 assert_out "You have worked for 130 minutes since " -- week

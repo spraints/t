@@ -184,11 +184,14 @@ fn cmd_stop() {
 fn cmd_edit() -> ! {
     let editor = std::env::var("EDITOR").unwrap();
     let path = t_data_file().unwrap();
+    let t = std::env::current_exe().unwrap();
+    let cmd = format!("{} \"$@\"; {:?} validate", editor, t);
+    eprintln!("$ {cmd}");
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
             .arg("-xc")
-            .arg(format!("{} \"$@\"; t validate", editor))
+            .arg(cmd)
             .arg(editor)
             .arg(path)
             .exec()
