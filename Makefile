@@ -1,5 +1,8 @@
 SRCS = $(shell find src -name '*.rs')
 
+.PHONY: default
+default: test release
+
 .PHONY: release
 release: target/release/t
 
