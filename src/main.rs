@@ -271,6 +271,9 @@ fn show_bitbar_plugin(mut wrapper: &str) {
         );
     }
     println!("---");
+    show_today();
+    show_week();
+    println!("---");
     show_race(4, " | font=Monaco");
 }
 
@@ -286,16 +289,25 @@ impl StatusUI for BitBarStatusUI {
 }
 
 fn cmd_today() {
+    show_today();
+    print_day_legend();
+}
+
+fn show_today() {
     let (start_today, now) = extents::today();
     // longest week so far is 46 entries, so 100 should be totally fine for a day.
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
     let entries = into_time_entries(entries);
     let minutes = minutes_between(&entries, start_today, now);
     println!("You have worked for {} minutes today.", minutes);
-    print_day_legend();
 }
 
 fn cmd_week() {
+    show_week();
+    print_week_legend();
+}
+
+fn show_week() {
     let (start_week, now) = extents::this_week();
     // longest week so far is 46 entries, so 100 should be totally fine.
     let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
@@ -306,7 +318,6 @@ fn cmd_week() {
         minutes,
         start_week.format("%Y-%m-%d")
     );
-    print_week_legend();
 }
 
 fn cmd_race(args: RaceArgs) {
