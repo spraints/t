@@ -1,4 +1,6 @@
 use gumdrop::Options;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::os::unix::process::CommandExt;
 use t::entry::into_time_entries;
 use t::entry::Entry;
@@ -185,8 +187,21 @@ fn cmd_edit() -> ! {
     let editor = std::env::var("EDITOR").unwrap();
     let path = t_data_file().unwrap();
     let t = std::env::current_exe().unwrap();
-    let cmd = format!("{} \"$@\"; {:?} validate", editor, t);
-    eprintln!("$ {cmd}");
+
+    // If we're using a vi-like editor, tell it to jump to the end of the file.
+    let args = if editor.split("/").last().unwrap().contains("vi") {
+        match File::open(&path) {
+            Ok(f) => {
+                let line_count = BufReader::new(f).lines().count();
+                format!("+{line_count}")
+            }
+            _ => "".to_owned(),
+        }
+    } else {
+        "".to_owned()
+    };
+
+    let cmd = format!("{editor} {args} \"$@\"; {t:?} validate");
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
