@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use time::{self, Date, OffsetDateTime, PrimitiveDateTime};
 
+/// Filter a list of Entry down to a list of only TimeEntry.
 pub fn into_time_entries(entries: Vec<Entry>) -> Vec<TimeEntry> {
     entries
         .into_iter()
@@ -138,6 +139,28 @@ impl TimeEntry {
             };
         }
         true
+    }
+
+    pub fn includes(&self, t: OffsetDateTime) -> bool {
+        match (&self.start, &self.stop) {
+            // If it started after t, it can't include t.
+            (start, _) if start.wrapped > t => false,
+            // If it stopped before t, it can't include t.
+            (_, Some(stop)) if stop.wrapped < t => false,
+            // Everything else must span t.
+            _ => true,
+        }
+    }
+
+    pub fn is_after(&self, t: OffsetDateTime) -> bool {
+        match (&self.start, &self.stop) {
+            // If it started after t, then it's after.
+            (start, _) if start.wrapped > t => true,
+            // If it stopped before t, then it's not after.
+            (_, Some(stop)) if stop.wrapped < t => false,
+            // Everything else is after.
+            _ => true,
+        }
     }
 
     pub fn is_valid_after(&self, other: &Option<TimeEntry>) -> Result<(), String> {
