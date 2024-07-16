@@ -58,6 +58,7 @@ struct Parser<R: BufRead> {
     default_tz: time::UtcOffset,
     line: usize,
     col: usize,
+    parse_state: ParseState,
 }
 
 /// Morsel is either an annotation or the start of a time entry.
@@ -196,6 +197,15 @@ impl ParseState {
         }
     }
 
+    fn reset(&mut self) {
+        for st in self.states.iter_mut() {
+            st.i = 0;
+            st.accum = 0;
+            st.visited = false;
+        }
+        self.state = self.init;
+    }
+
     fn add(&mut self, c: u8) {
         let old_state = self.state;
         self.state = self.states[self.state].next[c as usize];
@@ -330,8 +340,9 @@ impl ParseState {
 
 struct ParseStateMote {
     next: [usize; 256],
-    accum: u128,
     shift_factor: u128,
+
+    accum: u128,
     visited: bool,
     i: usize,
     chars: [u8; 100],
@@ -506,6 +517,7 @@ impl<R: BufRead> Parser<R> {
             default_tz,
             line: 1,
             col: 0,
+            parse_state: ParseState::new(),
         }
     }
 
@@ -515,12 +527,14 @@ impl<R: BufRead> Parser<R> {
                 None => return Ok(None),
                 Some(b' ' | b'\n') => (),
                 Some(c) => {
-                    let mut parse_state = ParseState::new();
-                    parse_state.add(c);
+                    self.parse_state.reset();
+                    self.parse_state.add(c);
                     loop {
                         match self.read()? {
-                            None | Some(b'\n') => return parse_state.res(|| self.implied_tz()),
-                            Some(c) => parse_state.add(c),
+                            None | Some(b'\n') => {
+                                return self.parse_state.res(|| self.implied_tz())
+                            }
+                            Some(c) => self.parse_state.add(c),
                         };
                     }
                 }
