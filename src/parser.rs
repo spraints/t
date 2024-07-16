@@ -2,6 +2,7 @@ use crate::entry::{into_time_entries, Entry, Time, TimeEntry, TZ};
 use crate::timesource::TimeSource;
 use std::error::Error;
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::str::Utf8Error;
 
 #[derive(Debug)]
 struct ParseError {
@@ -201,6 +202,8 @@ impl ParseState {
         let st = &mut self.states[self.state];
         let old_val = st.accum;
         st.accum = (st.shift_factor * st.accum) + self.digits[c as usize];
+        st.chars[st.i] = c;
+        st.i += 1;
         println!(
             "{:?}: from {old_state} to {}, value {old_val} => {}",
             c as char, self.state, st.accum
@@ -211,7 +214,7 @@ impl ParseState {
     fn res<F: Fn() -> TZ>(&self, implied_tz: F) -> Result<Option<Entry>, Box<dyn Error>> {
         let res = match self.state {
             x if x == self.init => Ok(None),
-            x if x == self.note => todo!("note"),
+            x if x == self.note => Ok(Some(Entry::Note(self.string(self.note)?))),
             x if x == self.min1 => Ok(Some(Entry::Time(TimeEntry {
                 start: Time::new(
                     // todo - count digits and fail here if it's not the right number?
@@ -290,14 +293,16 @@ impl ParseState {
         };
         println!("=> {res:?}");
         res
-        //            x if x == self.min2 => todo!(),
-        //            x if x == self.tz2 => todo!(),
-        //            x => Err(format!("invalid entry (st = {x}/{})", self.state).into()),
-        //        }
     }
 
     fn val(&self, i: usize) -> u128 {
         self.states[i].accum
+    }
+
+    fn string(&self, i: usize) -> Result<String, Utf8Error> {
+        let st = &self.states[i];
+        let chars = &st.chars[1..st.i];
+        std::str::from_utf8(chars).map(str::to_string)
     }
 
     fn maybe_tz<F: Fn() -> TZ>(&self, s: usize, n: usize, implied_tz: F) -> TZ {
@@ -328,6 +333,8 @@ struct ParseStateMote {
     accum: u128,
     shift_factor: u128,
     visited: bool,
+    i: usize,
+    chars: [u8; 100],
 }
 
 impl ParseStateMote {
@@ -337,6 +344,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 0,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
     fn first_char(v: &mut Vec<Self>, note_off: usize, year_off: usize) {
@@ -358,6 +367,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 0,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -367,6 +378,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 0,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -388,6 +401,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 10,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -403,11 +418,14 @@ impl ParseStateMote {
         next['7' as usize] = v.len() + offset;
         next['8' as usize] = v.len() + offset;
         next['9' as usize] = v.len() + offset;
+        next[' ' as usize] = v.len();
         v.push(Self {
             next,
             accum: 0,
             shift_factor: 0,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -436,6 +454,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 10,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -448,6 +468,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 0,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 
@@ -471,6 +493,8 @@ impl ParseStateMote {
             accum: 0,
             shift_factor: 10,
             visited: false,
+            i: 0,
+            chars: [0; 100],
         })
     }
 }
