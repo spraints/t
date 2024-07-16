@@ -19,7 +19,7 @@ impl Error for ParseError {}
 pub fn parse_entries<R: Read, TS: TimeSource>(r: R, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
     let r = BufReader::new(r);
     let mut parser = Parser::new(r, ts.local_offset());
-    let mut res = Vec::with_capacity(1000);
+    let mut res = vec![];
     loop {
         match parser.parse_entry()? {
             None => break,
