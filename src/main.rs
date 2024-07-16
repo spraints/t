@@ -89,6 +89,8 @@ struct BitBarArgs {
 struct DaysArgs {
     #[options(help = "include monthly and yearly totals")]
     summary: bool,
+    #[options(help = "only show yearly totals")]
+    annual: bool,
     #[options(
         free,
         help = "A year (YYYY) or month (YYYY-MM) to show (default is all)"
@@ -104,6 +106,7 @@ impl Into<(Vec<String>, report::days::Options)> for DaysArgs {
             self.filters,
             report::days::Options {
                 include_totals: self.summary,
+                only_show_per_year: self.annual,
             },
         )
     }

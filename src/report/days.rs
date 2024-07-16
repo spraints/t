@@ -7,7 +7,7 @@ use time::{Date, Duration};
 #[derive(Debug, PartialEq)]
 pub struct Report {
     years: Vec<Year>,
-    include_totals: bool,
+    opts: Options,
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,8 +39,22 @@ struct State {
     month: Month,
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Options {
     pub include_totals: bool,
+    pub only_show_per_year: bool,
+}
+
+impl Options {
+    fn show_weekly_total(&self) -> bool {
+        !self.only_show_per_year
+    }
+    fn show_monthly_total(&self) -> bool {
+        !self.only_show_per_year
+    }
+    fn show_yearly_total(&self) -> bool {
+        self.include_totals || self.only_show_per_year
+    }
 }
 
 pub fn prepare<TS: TimeSource>(entries: Vec<TimeEntry>, ts: &TS, opts: Options) -> Report {
@@ -148,10 +162,7 @@ fn finish(state: Option<State>, opts: Options) -> Report {
         }
         None => vec![],
     };
-    Report {
-        years,
-        include_totals: opts.include_totals,
-    }
+    Report { years, opts }
 }
 
 #[cfg(test)]
@@ -174,11 +185,15 @@ mod tests {
                 entries,
                 &DefaultTimeSource,
                 Options {
-                    include_totals: true
+                    include_totals: true,
+                    only_show_per_year: false
                 }
             ),
             Report {
-                include_totals: true,
+                opts: Options {
+                    include_totals: true,
+                    only_show_per_year: false
+                },
                 years: vec![]
             }
         );
@@ -193,11 +208,15 @@ mod tests {
                 entries,
                 &DefaultTimeSource,
                 Options {
-                    include_totals: true
+                    include_totals: true,
+                    only_show_per_year: false
                 }
             ),
             Report {
-                include_totals: true,
+                opts: Options {
+                    include_totals: true,
+                    only_show_per_year: false
+                },
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -223,11 +242,15 @@ mod tests {
                 entries,
                 &ts,
                 Options {
-                    include_totals: true
+                    include_totals: true,
+                    only_show_per_year: false
                 }
             ),
             Report {
-                include_totals: true,
+                opts: Options {
+                    include_totals: true,
+                    only_show_per_year: false
+                },
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -252,11 +275,15 @@ mod tests {
                 entries,
                 &DefaultTimeSource,
                 Options {
-                    include_totals: false
+                    include_totals: false,
+                    only_show_per_year: false
                 }
             ),
             Report {
-                include_totals: false,
+                opts: Options {
+                    include_totals: false,
+                    only_show_per_year: false
+                },
                 years: vec![Year {
                     year: 2013,
                     months: vec![Month {
@@ -297,11 +324,15 @@ mod tests {
                 entries,
                 &DefaultTimeSource,
                 Options {
-                    include_totals: true
+                    include_totals: true,
+                    only_show_per_year: false
                 }
             ),
             Report {
-                include_totals: true,
+                opts: Options {
+                    include_totals: true,
+                    only_show_per_year: false
+                },
                 years: vec![
                     Year {
                         year: 2015,
@@ -362,14 +393,16 @@ impl Display for Report {
             for month in &year.months {
                 let mut month_tot = [0; 7];
                 for week in &month.weeks {
-                    write_report_line(
-                        f,
-                        format!("{} - {}", week.start, week.start + SIX_DAYS),
-                        &week.minutes,
-                    )?;
+                    if self.opts.show_weekly_total() {
+                        write_report_line(
+                            f,
+                            format!("{} - {}", week.start, week.start + SIX_DAYS),
+                            &week.minutes,
+                        )?;
+                    }
                     accum(&mut month_tot, &week.minutes);
                 }
-                if self.include_totals {
+                if self.opts.show_monthly_total() {
                     write_report_line(
                         f,
                         format!("{:04}-{:02}", year.year, month.month),
@@ -378,7 +411,7 @@ impl Display for Report {
                 }
                 accum(&mut year_tot, &month_tot);
             }
-            if self.include_totals {
+            if self.opts.show_yearly_total() {
                 write_report_line(f, format!("{:04}", year.year), &year_tot)?;
             }
         }
