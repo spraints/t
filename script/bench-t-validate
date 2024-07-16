@@ -7,7 +7,7 @@ export T_DATA_FILE=$(t path) # this gets the path from my wrapper for 't'.
 BUILD=target/release/t
 VALIDATE_COUNT=20
 
-echo lines in "${T_DATA_FILE}"
+echo -n lines to parse:
 wc -l "${T_DATA_FILE}"
 
 (set -x; cargo build --release)
@@ -33,4 +33,4 @@ set --
 for x in benches/t-*; do
   set -- "$@" "${x} validate -c ${VALIDATE_COUNT}"
 done
-(set -x; hyperfine "$@")
+(set -x; hyperfine -w 1 "$@")

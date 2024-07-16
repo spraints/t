@@ -104,6 +104,8 @@ struct DaysArgs {
 struct ValidateArgs {
     #[options(help = "Number of times to validate (useful for benchmarking)")]
     count: Option<usize>,
+    #[options(help = "Show some extra information about the file")]
+    verbose: bool,
 }
 
 impl Into<(Vec<String>, report::days::Options)> for DaysArgs {
@@ -462,15 +464,16 @@ fn cmd_path() {
 }
 
 fn cmd_validate(args: ValidateArgs) {
-    let ValidateArgs { count } = args;
-    for _ in 0..count.unwrap_or(1) {
-        do_validate();
+    let ValidateArgs { count, verbose } = args;
+    for i in 0..count.unwrap_or(1) {
+        do_validate(verbose && i == 0);
     }
 }
 
-fn do_validate() {
+fn do_validate(verbose: bool) {
     let mut last_time_entry = None;
     let mut last_entry_is_finished = true;
+    let mut count = 0;
     for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
         if !last_entry_is_finished {
             println!("{}: previous entry is not finished", n);
@@ -482,6 +485,10 @@ fn do_validate() {
             }
             last_time_entry = Some(te);
         }
+        count += 1;
+    }
+    if verbose {
+        println!("Checked {count} lines.");
     }
 }
 
