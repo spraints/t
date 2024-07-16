@@ -66,6 +66,415 @@ enum Morsel {
     Note(String),
 }
 
+struct ParseState {
+    states: Vec<ParseStateMote>,
+    state: usize,
+    digits: [u128; 256],
+
+    init: usize,
+
+    note: usize,
+
+    year1: usize,
+    month1: usize,
+    day1: usize,
+    hour1: usize,
+    min1: usize,
+    tzsign1: usize,
+    tz1: usize,
+
+    comma: usize,
+
+    year2: usize,
+    month2: usize,
+    day2: usize,
+    hour2: usize,
+    min2: usize,
+    tzsign2: usize,
+    tz2: usize,
+}
+
+const MINUS: u128 = 99;
+const PLUS: u128 = 88;
+
+impl ParseState {
+    fn new() -> Self {
+        let mut digits = [0; 256];
+        digits['0' as usize] = 0;
+        digits['1' as usize] = 1;
+        digits['2' as usize] = 2;
+        digits['3' as usize] = 3;
+        digits['4' as usize] = 4;
+        digits['5' as usize] = 5;
+        digits['6' as usize] = 6;
+        digits['7' as usize] = 7;
+        digits['8' as usize] = 8;
+        digits['9' as usize] = 9;
+        digits['-' as usize] = 99;
+        digits['+' as usize] = 88;
+
+        let mut states = vec![];
+
+        ParseStateMote::error(&mut states);
+
+        let init = states.len();
+        ParseStateMote::first_char(&mut states, 1, 2);
+        let note = states.len();
+        ParseStateMote::note(&mut states);
+        let year1 = states.len();
+        ParseStateMote::number(&mut states, '-'); // year
+        ParseStateMote::skip(&mut states);
+        let month1 = states.len();
+        ParseStateMote::number(&mut states, '-'); // month
+        ParseStateMote::skip(&mut states);
+        let day1 = states.len();
+        ParseStateMote::number(&mut states, ' '); // day
+        ParseStateMote::skip(&mut states);
+        let hour1 = states.len();
+        ParseStateMote::number(&mut states, ':'); // hour
+        ParseStateMote::skip(&mut states);
+        let min1 = states.len();
+        ParseStateMote::minute(&mut states, Some(4)); // minute
+        ParseStateMote::tz_sign(&mut states);
+        let tzsign1 = states.len();
+        ParseStateMote::skip(&mut states);
+        let tz1 = states.len();
+        ParseStateMote::tz_value(&mut states, Some(1));
+
+        let comma = states.len();
+        ParseStateMote::skip(&mut states); // ,
+
+        let year2 = states.len();
+        ParseStateMote::number(&mut states, '-'); // year
+        ParseStateMote::skip(&mut states);
+        let month2 = states.len();
+        ParseStateMote::number(&mut states, '-'); // month
+        ParseStateMote::skip(&mut states);
+        let day2 = states.len();
+        ParseStateMote::number(&mut states, ' '); // day
+        ParseStateMote::skip(&mut states);
+        let hour2 = states.len();
+        ParseStateMote::number(&mut states, ':'); // hour
+        ParseStateMote::skip(&mut states);
+        let min2 = states.len();
+        ParseStateMote::minute(&mut states, None); // minute
+        ParseStateMote::tz_sign(&mut states);
+        let tzsign2 = states.len();
+        ParseStateMote::skip(&mut states);
+        let tz2 = states.len();
+        ParseStateMote::tz_value(&mut states, None);
+
+        println!("tzsign1 = {tzsign1}, tzsign2 = {tzsign2}");
+
+        Self {
+            state: init,
+            states,
+            digits,
+
+            init,
+
+            note,
+
+            year1,
+            month1,
+            day1,
+            hour1,
+            min1,
+            tzsign1,
+            tz1,
+
+            comma,
+
+            year2,
+            month2,
+            day2,
+            hour2,
+            min2,
+            tzsign2,
+            tz2,
+        }
+    }
+
+    fn add(&mut self, c: u8) {
+        let old_state = self.state;
+        self.state = self.states[self.state].next[c as usize];
+        let st = &mut self.states[self.state];
+        let old_val = st.accum;
+        st.accum = (st.shift_factor * st.accum) + self.digits[c as usize];
+        println!(
+            "{:?}: from {old_state} to {}, value {old_val} => {}",
+            c as char, self.state, st.accum
+        );
+        st.visited = true;
+    }
+
+    fn res<F: Fn() -> TZ>(&self, implied_tz: F) -> Result<Option<Entry>, Box<dyn Error>> {
+        let res = match self.state {
+            x if x == self.init => Ok(None),
+            x if x == self.note => todo!("note"),
+            x if x == self.min1 => Ok(Some(Entry::Time(TimeEntry {
+                start: Time::new(
+                    // todo - count digits and fail here if it's not the right number?
+                    self.val(self.year1) as u16,
+                    self.val(self.month1) as u8,
+                    self.val(self.day1) as u8,
+                    self.val(self.hour1) as u8,
+                    self.val(self.min1) as u8,
+                    implied_tz(),
+                )?,
+                stop: None,
+            }))),
+            x if x == self.tz1 => Ok(Some(Entry::Time(TimeEntry {
+                start: Time::new(
+                    // todo - count digits and fail here if it's not the right number?
+                    self.val(self.year1) as u16,
+                    self.val(self.month1) as u8,
+                    self.val(self.day1) as u8,
+                    self.val(self.hour1) as u8,
+                    self.val(self.min1) as u8,
+                    self.tz(self.tzsign1, self.tz1),
+                )?,
+                stop: None,
+            }))),
+            x if x == self.comma => Ok(Some(Entry::Time(TimeEntry {
+                start: Time::new(
+                    // todo - count digits and fail here if it's not the right number?
+                    self.val(self.year1) as u16,
+                    self.val(self.month1) as u8,
+                    self.val(self.day1) as u8,
+                    self.val(self.hour1) as u8,
+                    self.val(self.min1) as u8,
+                    self.maybe_tz(self.tzsign1, self.tz1, implied_tz),
+                )?,
+                stop: None,
+            }))),
+            x if x == self.min2 => Ok(Some(Entry::Time(TimeEntry {
+                start: Time::new(
+                    // todo - count digits and fail here if it's not the right number?
+                    self.val(self.year1) as u16,
+                    self.val(self.month1) as u8,
+                    self.val(self.day1) as u8,
+                    self.val(self.hour1) as u8,
+                    self.val(self.min1) as u8,
+                    self.maybe_tz(self.tzsign1, self.tz1, &implied_tz),
+                )?,
+                stop: Some(Time::new(
+                    self.val(self.year2) as u16,
+                    self.val(self.month2) as u8,
+                    self.val(self.day2) as u8,
+                    self.val(self.hour2) as u8,
+                    self.val(self.min2) as u8,
+                    implied_tz(),
+                )?),
+            }))),
+            x if x == self.tz2 => Ok(Some(Entry::Time(TimeEntry {
+                start: Time::new(
+                    // todo - count digits and fail here if it's not the right number?
+                    self.val(self.year1) as u16,
+                    self.val(self.month1) as u8,
+                    self.val(self.day1) as u8,
+                    self.val(self.hour1) as u8,
+                    self.val(self.min1) as u8,
+                    self.maybe_tz(self.tzsign1, self.tz1, &implied_tz),
+                )?,
+                stop: Some(Time::new(
+                    self.val(self.year2) as u16,
+                    self.val(self.month2) as u8,
+                    self.val(self.day2) as u8,
+                    self.val(self.hour2) as u8,
+                    self.val(self.min2) as u8,
+                    self.tz(self.tzsign2, self.tz2),
+                )?),
+            }))),
+            _ => Err(format!("invalid entry (state = {})", self.state).into()),
+        };
+        println!("=> {res:?}");
+        res
+        //            x if x == self.min2 => todo!(),
+        //            x if x == self.tz2 => todo!(),
+        //            x => Err(format!("invalid entry (st = {x}/{})", self.state).into()),
+        //        }
+    }
+
+    fn val(&self, i: usize) -> u128 {
+        self.states[i].accum
+    }
+
+    fn maybe_tz<F: Fn() -> TZ>(&self, s: usize, n: usize, implied_tz: F) -> TZ {
+        if self.states[n].visited {
+            println!("COMMA! has tz");
+            self.tz(s, n)
+        } else {
+            println!("COMMA! does not has tz");
+            implied_tz()
+        }
+    }
+
+    fn tz(&self, s: usize, n: usize) -> TZ {
+        println!("sign! {}", self.states[s].accum);
+        let val = self.val(n);
+        let hr = val / 100;
+        let min = val % 100;
+        let mut off = hr as i16 * 60 + min as i16;
+        if self.states[s].accum == MINUS {
+            off *= -1;
+        }
+        TZ::Known(time::UtcOffset::minutes(off))
+    }
+}
+
+struct ParseStateMote {
+    next: [usize; 256],
+    accum: u128,
+    shift_factor: u128,
+    visited: bool,
+}
+
+impl ParseStateMote {
+    fn error(v: &mut Vec<Self>) {
+        v.push(Self {
+            next: [0; 256],
+            accum: 0,
+            shift_factor: 0,
+            visited: false,
+        })
+    }
+    fn first_char(v: &mut Vec<Self>, note_off: usize, year_off: usize) {
+        let mut next = [0; 256];
+        next[' ' as usize] = v.len();
+        next['#' as usize] = v.len() + note_off;
+        next['0' as usize] = v.len() + year_off;
+        next['1' as usize] = v.len() + year_off;
+        next['2' as usize] = v.len() + year_off;
+        next['3' as usize] = v.len() + year_off;
+        next['4' as usize] = v.len() + year_off;
+        next['5' as usize] = v.len() + year_off;
+        next['6' as usize] = v.len() + year_off;
+        next['7' as usize] = v.len() + year_off;
+        next['8' as usize] = v.len() + year_off;
+        next['9' as usize] = v.len() + year_off;
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 0,
+            visited: false,
+        })
+    }
+
+    fn note(v: &mut Vec<Self>) {
+        v.push(Self {
+            next: [v.len(); 256],
+            accum: 0,
+            shift_factor: 0,
+            visited: false,
+        })
+    }
+
+    fn number(v: &mut Vec<Self>, nextc: char) {
+        let mut next = [0; 256];
+        next['0' as usize] = v.len();
+        next['1' as usize] = v.len();
+        next['2' as usize] = v.len();
+        next['3' as usize] = v.len();
+        next['4' as usize] = v.len();
+        next['5' as usize] = v.len();
+        next['6' as usize] = v.len();
+        next['7' as usize] = v.len();
+        next['8' as usize] = v.len();
+        next['9' as usize] = v.len();
+        next[nextc as usize] = v.len() + 1;
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 10,
+            visited: false,
+        })
+    }
+
+    fn skip_n(v: &mut Vec<Self>, offset: usize) {
+        let mut next = [0; 256];
+        next['0' as usize] = v.len() + offset;
+        next['1' as usize] = v.len() + offset;
+        next['2' as usize] = v.len() + offset;
+        next['3' as usize] = v.len() + offset;
+        next['4' as usize] = v.len() + offset;
+        next['5' as usize] = v.len() + offset;
+        next['6' as usize] = v.len() + offset;
+        next['7' as usize] = v.len() + offset;
+        next['8' as usize] = v.len() + offset;
+        next['9' as usize] = v.len() + offset;
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 0,
+            visited: false,
+        })
+    }
+
+    fn skip(v: &mut Vec<Self>) {
+        Self::skip_n(v, 1)
+    }
+
+    fn minute(v: &mut Vec<Self>, comma_off: Option<usize>) {
+        let mut next = [0; 256];
+        next['0' as usize] = v.len();
+        next['1' as usize] = v.len();
+        next['2' as usize] = v.len();
+        next['3' as usize] = v.len();
+        next['4' as usize] = v.len();
+        next['5' as usize] = v.len();
+        next['6' as usize] = v.len();
+        next['7' as usize] = v.len();
+        next['8' as usize] = v.len();
+        next['9' as usize] = v.len();
+        next[' ' as usize] = v.len() + 1;
+        if let Some(x) = comma_off {
+            next[',' as usize] = v.len() + x;
+        }
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 10,
+            visited: false,
+        })
+    }
+
+    fn tz_sign(v: &mut Vec<Self>) {
+        let mut next = [0; 256];
+        next['-' as usize] = v.len() + 1;
+        next['+' as usize] = v.len() + 1;
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 0,
+            visited: false,
+        })
+    }
+
+    fn tz_value(v: &mut Vec<Self>, comma_off: Option<usize>) {
+        let mut next = [0; 256];
+        next['0' as usize] = v.len();
+        next['1' as usize] = v.len();
+        next['2' as usize] = v.len();
+        next['3' as usize] = v.len();
+        next['4' as usize] = v.len();
+        next['5' as usize] = v.len();
+        next['6' as usize] = v.len();
+        next['7' as usize] = v.len();
+        next['8' as usize] = v.len();
+        next['9' as usize] = v.len();
+        if let Some(x) = comma_off {
+            next[',' as usize] = v.len() + x;
+        }
+        v.push(Self {
+            next,
+            accum: 0,
+            shift_factor: 10,
+            visited: false,
+        })
+    }
+}
+
 impl<R: BufRead> Parser<R> {
     fn new(r: R, default_tz: time::UtcOffset) -> Parser<R> {
         Parser {
@@ -77,6 +486,25 @@ impl<R: BufRead> Parser<R> {
     }
 
     fn parse_entry(&mut self) -> Result<Option<Entry>, Box<dyn Error>> {
+        loop {
+            match self.read()? {
+                None => return Ok(None),
+                Some(b' ' | b'\n') => (),
+                Some(c) => {
+                    let mut parse_state = ParseState::new();
+                    parse_state.add(c);
+                    loop {
+                        match self.read()? {
+                            None | Some(b'\n') => return parse_state.res(|| self.implied_tz()),
+                            Some(c) => parse_state.add(c),
+                        };
+                    }
+                }
+            };
+        }
+    }
+
+    fn old_parse_entry(&mut self) -> Result<Option<Entry>, Box<dyn Error>> {
         match self.parse_morsel()? {
             Morsel::None => Ok(None),
             Morsel::Note(note) => Ok(Some(Entry::Note(note))),
