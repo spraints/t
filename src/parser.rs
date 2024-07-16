@@ -166,8 +166,6 @@ impl ParseState {
         let tz2 = states.len();
         ParseStateMote::tz_value(&mut states, None);
 
-        println!("tzsign1 = {tzsign1}, tzsign2 = {tzsign2}");
-
         Self {
             state: init,
             states,
@@ -214,10 +212,6 @@ impl ParseState {
         st.accum = (st.shift_factor * st.accum) + self.digits[c as usize];
         st.chars[st.i] = c;
         st.i += 1;
-        println!(
-            "{:?}: from {old_state} to {}, value {old_val} => {}",
-            c as char, self.state, st.accum
-        );
         st.visited = true;
     }
 
@@ -301,7 +295,6 @@ impl ParseState {
             }))),
             _ => Err(format!("invalid entry (state = {})", self.state).into()),
         };
-        println!("=> {res:?}");
         res
     }
 
@@ -317,16 +310,13 @@ impl ParseState {
 
     fn maybe_tz<F: Fn() -> TZ>(&self, s: usize, n: usize, implied_tz: F) -> TZ {
         if self.states[n].visited {
-            println!("COMMA! has tz");
             self.tz(s, n)
         } else {
-            println!("COMMA! does not has tz");
             implied_tz()
         }
     }
 
     fn tz(&self, s: usize, n: usize) -> TZ {
-        println!("sign! {}", self.states[s].accum);
         let val = self.val(n);
         let hr = val / 100;
         let min = val % 100;
