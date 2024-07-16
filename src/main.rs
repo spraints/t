@@ -60,7 +60,7 @@ enum TCommand {
     #[options(help = "show the path to t.csv")]
     Path(NoArgs),
     #[options(help = "check for any formatting errors in t.csv")]
-    Validate(NoArgs),
+    Validate(ValidateArgs),
     #[options(help = "show current timestamp as it would be written to t.csv")]
     Now(NoArgs),
     #[options(help = "show all annotations in t.csv")]
@@ -98,6 +98,12 @@ struct DaysArgs {
     filters: Vec<String>,
     #[options(help = "show this message")]
     help: bool,
+}
+
+#[derive(Options, Default)]
+struct ValidateArgs {
+    #[options(help = "Number of times to validate (useful for benchmarking)")]
+    count: Option<usize>,
 }
 
 impl Into<(Vec<String>, report::days::Options)> for DaysArgs {
@@ -157,7 +163,7 @@ fn main() {
             TCommand::Pto(args) => cmd_pto(args),
             //TCommand::Short(_) => cmd_short(),
             TCommand::Path(_) => cmd_path(),
-            TCommand::Validate(_) => cmd_validate(),
+            TCommand::Validate(args) => cmd_validate(args),
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
         },
@@ -170,7 +176,7 @@ fn usage() -> ! {
 }
 
 fn cmd_start() {
-    cmd_validate();
+    cmd_validate(Default::default());
     match start_new_entry(&TIME_SOURCE).unwrap() {
         None => println!("Starting work."),
         Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
@@ -178,7 +184,7 @@ fn cmd_start() {
 }
 
 fn cmd_stop() {
-    cmd_validate();
+    cmd_validate(Default::default());
     match stop_current_entry(&TIME_SOURCE).unwrap() {
         Some((true, minutes)) => println!("You just worked for {} minutes.", minutes),
         Some((false, minutes)) => println!("You stopped {} minutes ago.", minutes),
@@ -455,7 +461,14 @@ fn cmd_path() {
     println!("{}", t_data_file().unwrap());
 }
 
-fn cmd_validate() {
+fn cmd_validate(args: ValidateArgs) {
+    let ValidateArgs { count } = args;
+    for _ in 0..count.unwrap_or(1) {
+        do_validate();
+    }
+}
+
+fn do_validate() {
     let mut last_time_entry = None;
     let mut last_entry_is_finished = true;
     for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
