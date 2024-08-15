@@ -69,7 +69,7 @@ enum TCommand {
     #[options(help = "show all annotations in t.csv")]
     Notes(NoArgs),
     #[options(help = "run a web server")]
-    Web(NoArgs),
+    Web(WebArgs),
 }
 
 #[derive(Options)]
@@ -142,6 +142,25 @@ struct PtoArgs {
 }
 
 #[derive(Options)]
+struct WebArgs {
+    #[options(help = "path to static files")]
+    static_path: Option<String>,
+
+    #[options(help = "show this message")]
+    help: bool,
+}
+
+impl Into<web::Options> for WebArgs {
+    fn into(self) -> web::Options {
+        let static_root: std::path::PathBuf = match self.static_path {
+            None => "public".into(),
+            Some(path) => path.into(),
+        };
+        web::Options { static_root }
+    }
+}
+
+#[derive(Options)]
 struct NoArgs {
     #[options(help = "show this message")]
     help: bool,
@@ -174,7 +193,7 @@ async fn main() {
             TCommand::Validate(args) => cmd_validate(args),
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
-            TCommand::Web(_) => web_main().await,
+            TCommand::Web(args) => web_main(args.into()).await,
         },
     };
 }
