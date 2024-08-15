@@ -146,17 +146,29 @@ struct WebArgs {
     #[options(help = "path to static files")]
     static_path: Option<String>,
 
+    #[options(help = "path to t.csv (default: T_DATA_FILE or t.csv)")]
+    t_data_file: Option<String>,
+
     #[options(help = "show this message")]
     help: bool,
 }
 
 impl Into<web::Options> for WebArgs {
     fn into(self) -> web::Options {
-        let static_root: std::path::PathBuf = match self.static_path {
+        let static_root = match self.static_path {
             None => "public".into(),
             Some(path) => path.into(),
         };
-        web::Options { static_root }
+        let t_data_file = self
+            .t_data_file
+            .or_else(|| t::file::t_data_file().ok())
+            .unwrap_or_else(|| "t.csv".to_string())
+            .into();
+        web::Options {
+            static_root,
+            t_data_file,
+            time_source: web::TimeSource::new(TIME_SOURCE.clone()),
+        }
     }
 }
 

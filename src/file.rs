@@ -489,7 +489,7 @@ pub fn read_last_entries<TS: TimeSource>(n: u64, ts: &TS) -> Result<Vec<Entry>, 
     t_open(t_data_file()?)?.read_last_entries(n, ts)
 }
 
-fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
+pub fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
     match File::open(t_data_file) {
         Ok(f) => Ok(TFile { f: Some(f) }),
         Err(e) => match e.kind() {
@@ -499,12 +499,12 @@ fn t_open<P: AsRef<Path>>(t_data_file: P) -> io::Result<TFile> {
     }
 }
 
-struct TFile {
+pub struct TFile {
     f: Option<File>,
 }
 
 impl TFile {
-    fn read_entries<TS: TimeSource>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
+    pub fn read_entries<TS: TimeSource>(self, ts: &TS) -> Result<Vec<Entry>, Box<dyn Error>> {
         match self.f {
             Some(f) => parse_entries(f, ts),
             None => Ok(vec![]),
@@ -515,7 +515,7 @@ impl TFile {
         Ok(self.read_last_entries(1, ts)?.into_iter().last())
     }
 
-    fn read_last_entries<TS: TimeSource>(
+    pub fn read_last_entries<TS: TimeSource>(
         self,
         n: u64,
         ts: &TS,
