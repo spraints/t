@@ -1,3 +1,5 @@
+mod web;
+
 use gumdrop::Options;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -11,6 +13,7 @@ use t::filter::filter_entries;
 use t::report;
 use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
+use web::web_main;
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
 
@@ -65,6 +68,8 @@ enum TCommand {
     Now(NoArgs),
     #[options(help = "show all annotations in t.csv")]
     Notes(NoArgs),
+    #[options(help = "run a web server")]
+    Web(NoArgs),
 }
 
 #[derive(Options)]
@@ -144,7 +149,8 @@ struct NoArgs {
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
 
-fn main() {
+#[rocket::main]
+async fn main() {
     let opts = MainOptions::parse_args_default_or_exit();
     match opts.command {
         None => usage(),
@@ -168,6 +174,7 @@ fn main() {
             TCommand::Validate(args) => cmd_validate(args),
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
+            TCommand::Web(_) => web_main().await,
         },
     };
 }
