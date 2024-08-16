@@ -1,10 +1,11 @@
+use std::error::Error;
 use std::path::PathBuf;
 
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::entry::{into_time_entries, Entry, TimeEntry};
 use crate::extents;
-use crate::file::{read_last_entries, t_open};
+use crate::file::{read_entries, read_last_entries, t_open};
 use crate::timesource::TimeSource;
 
 pub fn for_cli<TS>(ts: TS) -> Context<TS> {
@@ -21,10 +22,16 @@ pub struct Context<TS> {
 }
 
 impl<TS: TimeSource> Context<TS> {
-    pub fn status(&self) -> Result<Status, Box<dyn std::error::Error>> {
+    pub fn tail(&self) -> Result<EntriesResult, Box<dyn Error>> {
         let entries = self.read_last_entries(100)?;
         let entries = into_time_entries(entries);
-        Ok(Status { entries })
+        Ok(EntriesResult { entries })
+    }
+
+    pub fn all(&self) -> Result<EntriesResult, Box<dyn Error>> {
+        let entries = self.read_entries()?;
+        let entries = into_time_entries(entries);
+        Ok(EntriesResult { entries })
     }
 
     fn read_last_entries(&self, n: u64) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
@@ -33,13 +40,24 @@ impl<TS: TimeSource> Context<TS> {
             Some(tf) => t_open(&tf)?.read_last_entries(n, &self.ts),
         }
     }
+
+    fn read_entries(&self) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
+        match &self.tf {
+            None => read_entries(&self.ts),
+            Some(tf) => t_open(&tf)?.read_entries(&self.ts),
+        }
+    }
 }
 
-pub struct Status {
+pub struct EntriesResult {
     entries: Vec<TimeEntry>,
 }
 
-impl Status {
+impl EntriesResult {
+    pub fn start_week(&self) -> time::OffsetDateTime {
+        extents::this_week().0
+    }
+
     pub fn is_working(&self) -> bool {
         match self.entries.last() {
             None => false,
@@ -47,9 +65,41 @@ impl Status {
         }
     }
 
+    pub fn minutes_today(&self) -> i64 {
+        let (start_today, now) = extents::today();
+        minutes_between(&self.entries, start_today, now)
+    }
+
     pub fn minutes_this_week(&self) -> i64 {
         let (start_week, now) = extents::this_week();
         minutes_between(&self.entries, start_week, now)
+    }
+
+    pub fn recent_weeks<'a>(&'a self, previous_weeks: i16) -> Vec<PreviousWeek<'a>> {
+        let (start_week, now) = extents::this_week();
+        (0..previous_weeks)
+            .rev()
+            .map(|off| {
+                let off = Duration::weeks((1 + off) as i64);
+                PreviousWeek {
+                    start: start_week - off,
+                    todayish: now - off,
+                    entries: &self.entries,
+                }
+            })
+            .collect()
+    }
+}
+
+pub struct PreviousWeek<'a> {
+    pub start: time::OffsetDateTime,
+    todayish: time::OffsetDateTime,
+    entries: &'a [TimeEntry],
+}
+
+impl<'a> PreviousWeek<'a> {
+    pub fn minutes_to_date(&self) -> i64 {
+        minutes_between(self.entries, self.start, self.todayish)
     }
 }
 

@@ -10,7 +10,7 @@ use t::entry::TimeEntry;
 use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
-use t::query::{self, Status};
+use t::query::{self, EntriesResult};
 use t::report;
 use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
@@ -270,15 +270,15 @@ fn cmd_status(args: StatusArgs) {
 }
 
 fn show_status(ui: impl StatusUI) -> bool {
-    let status = query::for_cli(TIME_SOURCE.clone())
-        .status()
+    let entries = query::for_cli(TIME_SOURCE.clone())
+        .tail()
         .expect("error parsing data file");
-    println!("{}", ui.format(&status));
-    status.is_working()
+    println!("{}", ui.format(&entries));
+    entries.is_working()
 }
 
 trait StatusUI {
-    fn format(&self, status: &Status) -> String;
+    fn format(&self, entries: &EntriesResult) -> String;
 }
 
 struct CLIStatusUI {
@@ -286,14 +286,14 @@ struct CLIStatusUI {
 }
 
 impl StatusUI for CLIStatusUI {
-    fn format(&self, status: &Status) -> String {
-        let status_str = if status.is_working() {
+    fn format(&self, entries: &EntriesResult) -> String {
+        let status_str = if entries.is_working() {
             "WORKING"
         } else {
             "NOT working"
         };
         if self.with_week {
-            let minutes = status.minutes_this_week();
+            let minutes = entries.minutes_this_week();
             format!("{status_str} ({minutes})")
         } else {
             status_str.to_string()
@@ -345,9 +345,9 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 struct BitBarStatusUI;
 
 impl StatusUI for BitBarStatusUI {
-    fn format(&self, status: &Status) -> String {
-        let status_str = if status.is_working() { "👔" } else { "😴" };
-        let minutes = status.minutes_this_week();
+    fn format(&self, entries: &EntriesResult) -> String {
+        let status_str = if entries.is_working() { "👔" } else { "😴" };
+        let minutes = entries.minutes_this_week();
         format!("{status_str}{}", week_progress_emoji(minutes))
     }
 }
@@ -390,22 +390,19 @@ fn cmd_race(args: RaceArgs) {
 }
 
 fn show_race(previous_weeks: i16, suffix: &str) {
-    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
-    let entries = into_time_entries(entries);
-    let (start_week, now) = extents::this_week();
-    let minutes_this_week = minutes_between(&entries, start_week, now);
+    let res = query::for_cli(TIME_SOURCE.clone())
+        .all()
+        .expect("error parsing data file");
+    let minutes_this_week = res.minutes_this_week();
 
     let mut total_prev_minutes = 0;
     let mut behind = 0;
     let mut ahead = 0;
-    for off in -previous_weeks..0 {
-        let off = Duration::weeks(-off as i64);
-        let wstart = start_week - off;
-        let wnow = now - off;
-        let minutes = minutes_between(&entries, wstart, wnow);
+    for w in res.recent_weeks(previous_weeks) {
+        let minutes = w.minutes_to_date();
         println!(
             "{}: {} {:4} minutes {}{}",
-            wstart.format("%Y-%m-%d"),
+            w.start.format("%Y-%m-%d"),
             week_progress_emoji(minutes),
             minutes,
             race_bars(minutes),
@@ -432,7 +429,7 @@ fn show_race(previous_weeks: i16, suffix: &str) {
     };
     println!(
         "{}: {} {:4} minutes {}{}",
-        start_week.format("%Y-%m-%d"),
+        res.start_week().format("%Y-%m-%d"),
         week_progress_emoji(minutes_this_week),
         minutes_this_week,
         race_bars(minutes_this_week),
