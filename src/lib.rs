@@ -4,5 +4,6 @@ pub mod file;
 pub mod filter;
 pub mod iter;
 pub mod parser;
+pub mod query;
 pub mod report;
 pub mod timesource;

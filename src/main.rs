@@ -10,6 +10,7 @@ use t::entry::TimeEntry;
 use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
+use t::query::{self, Status};
 use t::report;
 use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
@@ -269,18 +270,15 @@ fn cmd_status(args: StatusArgs) {
 }
 
 fn show_status(ui: impl StatusUI) -> bool {
-    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
-    let entries = into_time_entries(entries);
-    let working = match entries.last() {
-        None => false,
-        Some(e) => e.stop.is_none(),
-    };
-    println!("{}", ui.format(working, &entries));
-    working
+    let status = query::for_cli(TIME_SOURCE.clone())
+        .status()
+        .expect("error parsing data file");
+    println!("{}", ui.format(&status));
+    status.is_working()
 }
 
 trait StatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String;
+    fn format(&self, status: &Status) -> String;
 }
 
 struct CLIStatusUI {
@@ -288,14 +286,17 @@ struct CLIStatusUI {
 }
 
 impl StatusUI for CLIStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
-        let status = if working { "WORKING" } else { "NOT working" };
-        if self.with_week {
-            let (start_week, now) = extents::this_week();
-            let minutes = minutes_between(entries, start_week, now);
-            format!("{status} ({minutes})")
+    fn format(&self, status: &Status) -> String {
+        let status_str = if status.is_working() {
+            "WORKING"
         } else {
-            status.to_string()
+            "NOT working"
+        };
+        if self.with_week {
+            let minutes = status.minutes_this_week();
+            format!("{status_str} ({minutes})")
+        } else {
+            status_str.to_string()
         }
     }
 }
@@ -344,11 +345,10 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 struct BitBarStatusUI;
 
 impl StatusUI for BitBarStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
-        let status = if working { "👔" } else { "😴" };
-        let (start_week, now) = extents::this_week();
-        let minutes = minutes_between(entries, start_week, now);
-        format!("{status}{}", week_progress_emoji(minutes))
+    fn format(&self, status: &Status) -> String {
+        let status_str = if status.is_working() { "👔" } else { "😴" };
+        let minutes = status.minutes_this_week();
+        format!("{status_str}{}", week_progress_emoji(minutes))
     }
 }
 
