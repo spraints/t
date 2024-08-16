@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use rocket::fs::FileServer;
 use rocket::serde::{json::Json, Serialize};
 use rocket::{get, routes, State};
-use t::file::t_open;
+use t::query;
 
 pub struct Options {
     pub static_root: PathBuf,
@@ -35,6 +35,16 @@ impl t::timesource::TimeSource for TimeSource {
     }
 }
 
+impl t::timesource::TimeSource for &TimeSource {
+    fn local_offset(&self) -> time::UtcOffset {
+        self.ts.local_offset()
+    }
+
+    fn now(&self) -> time::OffsetDateTime {
+        self.ts.now()
+    }
+}
+
 pub async fn web_main(opts: Options) {
     let static_root = opts.static_root.clone();
     rocket::build()
@@ -49,12 +59,24 @@ pub async fn web_main(opts: Options) {
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 struct Status {
-    n: usize,
+    working: bool,
+    minutes_this_week: i64,
+}
+
+impl Into<Status> for query::Status {
+    fn into(self) -> Status {
+        Status {
+            working: self.is_working(),
+            minutes_this_week: self.minutes_this_week(),
+        }
+    }
 }
 
 #[get("/api/status")]
-fn status(opts: &State<Options>) -> Json<Status> {
-    let tdf = t_open(&opts.t_data_file).unwrap();
-    let es = tdf.read_entries(&opts.time_source).unwrap();
-    Status { n: es.len() }.into()
+fn status(opts: &State<Options>) -> Result<Json<Status>, String> {
+    let st: Status = query::for_web(opts.t_data_file.clone(), &opts.time_source)
+        .status()
+        .or_else(|_| Err("boom".to_string()))?
+        .into();
+    Ok(st.into())
 }
