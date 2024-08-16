@@ -60,23 +60,36 @@ pub async fn web_main(opts: Options) {
 #[serde(crate = "rocket::serde")]
 struct Status {
     working: bool,
+    minutes_today: i64,
     minutes_this_week: i64,
+    recent: Vec<WeekStatus>,
 }
 
-impl Into<Status> for query::Status {
-    fn into(self) -> Status {
-        Status {
-            working: self.is_working(),
-            minutes_this_week: self.minutes_this_week(),
-        }
-    }
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+struct WeekStatus {
+    start_of_week: String,
+    race_minutes: i64,
+    total_minutes: i64,
 }
 
 #[get("/api/status")]
 fn status(opts: &State<Options>) -> Result<Json<Status>, String> {
-    let st: Status = query::for_web(opts.t_data_file.clone(), &opts.time_source)
-        .status()
-        .or_else(|_| Err("boom".to_string()))?
-        .into();
-    Ok(st.into())
+    let ctx = query::for_web(opts.t_data_file.clone(), &opts.time_source);
+    let entries = ctx.all().or_else(|e| Err(format!("error: {e}")))?;
+    Ok(Status {
+        working: entries.is_working(),
+        minutes_today: entries.minutes_today(),
+        minutes_this_week: entries.minutes_this_week(),
+        recent: entries
+            .recent_weeks(4)
+            .into_iter()
+            .map(|w| WeekStatus {
+                start_of_week: w.start.format("%Y-%m-%d"),
+                race_minutes: w.minutes_to_date(),
+                total_minutes: w.total_minutes(),
+            })
+            .collect(),
+    }
+    .into())
 }

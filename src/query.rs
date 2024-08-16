@@ -101,6 +101,10 @@ impl<'a> PreviousWeek<'a> {
     pub fn minutes_to_date(&self) -> i64 {
         minutes_between(self.entries, self.start, self.todayish)
     }
+
+    pub fn total_minutes(&self) -> i64 {
+        minutes_between(self.entries, self.start, self.start + Duration::days(7))
+    }
 }
 
 fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDateTime) -> i64 {
