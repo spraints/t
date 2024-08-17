@@ -60,6 +60,7 @@ pub async fn web_main(opts: Options) {
 #[serde(crate = "rocket::serde")]
 struct Status {
     working: bool,
+    last_update: Option<String>,
     minutes_today: i64,
     minutes_this_week: i64,
     recent: Vec<WeekStatus>,
@@ -79,6 +80,7 @@ fn status(opts: &State<Options>) -> Result<Json<Status>, String> {
     let entries = ctx.all().or_else(|e| Err(format!("error: {e}")))?;
     Ok(Status {
         working: entries.is_working(),
+        last_update: entries.last_update(),
         minutes_today: entries.minutes_today(),
         minutes_this_week: entries.minutes_this_week(),
         recent: entries

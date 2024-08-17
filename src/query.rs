@@ -65,6 +65,16 @@ impl EntriesResult {
         }
     }
 
+    pub fn last_update(&self) -> Option<String> {
+        match self.entries.last() {
+            None => None,
+            Some(e) => match &e.stop {
+                None => Some(format!("{}", e.start)),
+                Some(t) => Some(format!("{}", t)),
+            },
+        }
+    }
+
     pub fn minutes_today(&self) -> i64 {
         let (start_today, now) = extents::today();
         minutes_between(&self.entries, start_today, now)
