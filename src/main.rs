@@ -293,7 +293,7 @@ impl StatusUI for CLIStatusUI {
             "NOT working"
         };
         if self.with_week {
-            let minutes = entries.minutes_this_week();
+            let minutes = entries.minutes_between(extents::this_week());
             format!("{status_str} ({minutes})")
         } else {
             status_str.to_string()
@@ -347,7 +347,7 @@ struct BitBarStatusUI;
 impl StatusUI for BitBarStatusUI {
     fn format(&self, entries: &EntriesResult) -> String {
         let status_str = if entries.is_working() { "👔" } else { "😴" };
-        let minutes = entries.minutes_this_week();
+        let minutes = entries.minutes_between(extents::this_week());
         format!("{status_str}{}", week_progress_emoji(minutes))
     }
 }
@@ -393,7 +393,8 @@ fn show_race(previous_weeks: i16, suffix: &str) {
     let res = query::for_cli(TIME_SOURCE.clone())
         .all()
         .expect("error parsing data file");
-    let minutes_this_week = res.minutes_this_week();
+    let (start_week, now) = extents::this_week();
+    let minutes_this_week = res.minutes_between((start_week, now));
 
     let mut total_prev_minutes = 0;
     let mut behind = 0;
@@ -429,7 +430,7 @@ fn show_race(previous_weeks: i16, suffix: &str) {
     };
     println!(
         "{}: {} {:4} minutes {}{}",
-        res.start_week().format("%Y-%m-%d"),
+        start_week.format("%Y-%m-%d"),
         week_progress_emoji(minutes_this_week),
         minutes_this_week,
         race_bars(minutes_this_week),

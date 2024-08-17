@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use rocket::fs::FileServer;
 use rocket::serde::{json::Json, Serialize};
 use rocket::{get, routes, State};
-use t::query;
+use t::{extents, query};
 
 pub struct Options {
     pub static_root: PathBuf,
@@ -81,8 +81,8 @@ fn status(opts: &State<Options>) -> Result<Json<Status>, String> {
     Ok(Status {
         working: entries.is_working(),
         last_update: entries.last_update(),
-        minutes_today: entries.minutes_today(),
-        minutes_this_week: entries.minutes_this_week(),
+        minutes_today: entries.minutes_between(extents::today()),
+        minutes_this_week: entries.minutes_between(extents::this_week()),
         recent: entries
             .recent_weeks(4)
             .into_iter()

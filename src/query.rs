@@ -54,10 +54,6 @@ pub struct EntriesResult {
 }
 
 impl EntriesResult {
-    pub fn start_week(&self) -> time::OffsetDateTime {
-        extents::this_week().0
-    }
-
     pub fn is_working(&self) -> bool {
         match self.entries.last() {
             None => false,
@@ -75,14 +71,8 @@ impl EntriesResult {
         }
     }
 
-    pub fn minutes_today(&self) -> i64 {
-        let (start_today, now) = extents::today();
-        minutes_between(&self.entries, start_today, now)
-    }
-
-    pub fn minutes_this_week(&self) -> i64 {
-        let (start_week, now) = extents::this_week();
-        minutes_between(&self.entries, start_week, now)
+    pub fn minutes_between(&self, range: (time::OffsetDateTime, time::OffsetDateTime)) -> i64 {
+        minutes_between(&self.entries, range.0, range.1)
     }
 
     pub fn recent_weeks<'a>(&'a self, previous_weeks: i16) -> Vec<PreviousWeek<'a>> {
