@@ -1,3 +1,5 @@
+mod web;
+
 use gumdrop::Options;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -8,9 +10,11 @@ use t::entry::TimeEntry;
 use t::extents;
 use t::file::*;
 use t::filter::filter_entries;
+use t::query::{self, EntriesResult};
 use t::report;
 use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
+use web::web_main;
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
 
@@ -65,6 +69,8 @@ enum TCommand {
     Now(NoArgs),
     #[options(help = "show all annotations in t.csv")]
     Notes(NoArgs),
+    #[options(help = "run a web server")]
+    Web(WebArgs),
 }
 
 #[derive(Options)]
@@ -137,6 +143,37 @@ struct PtoArgs {
 }
 
 #[derive(Options)]
+struct WebArgs {
+    #[options(help = "path to static files")]
+    static_path: Option<String>,
+
+    #[options(help = "path to t.csv (default: T_DATA_FILE or t.csv)")]
+    t_data_file: Option<String>,
+
+    #[options(help = "show this message")]
+    help: bool,
+}
+
+impl Into<web::Options> for WebArgs {
+    fn into(self) -> web::Options {
+        let static_root = match self.static_path {
+            None => "public".into(),
+            Some(path) => path.into(),
+        };
+        let t_data_file = self
+            .t_data_file
+            .or_else(|| t::file::t_data_file().ok())
+            .unwrap_or_else(|| "t.csv".to_string())
+            .into();
+        web::Options {
+            static_root,
+            t_data_file,
+            time_source: web::TimeSource::new(TIME_SOURCE.clone()),
+        }
+    }
+}
+
+#[derive(Options)]
 struct NoArgs {
     #[options(help = "show this message")]
     help: bool,
@@ -144,7 +181,8 @@ struct NoArgs {
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
 
-fn main() {
+#[rocket::main]
+async fn main() {
     let opts = MainOptions::parse_args_default_or_exit();
     match opts.command {
         None => usage(),
@@ -168,6 +206,7 @@ fn main() {
             TCommand::Validate(args) => cmd_validate(args),
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
+            TCommand::Web(args) => web_main(args.into()).await,
         },
     };
 }
@@ -231,18 +270,15 @@ fn cmd_status(args: StatusArgs) {
 }
 
 fn show_status(ui: impl StatusUI) -> bool {
-    let entries = read_last_entries(100, &TIME_SOURCE).expect("error parsing data file");
-    let entries = into_time_entries(entries);
-    let working = match entries.last() {
-        None => false,
-        Some(e) => e.stop.is_none(),
-    };
-    println!("{}", ui.format(working, &entries));
-    working
+    let entries = query::for_cli(TIME_SOURCE.clone())
+        .tail()
+        .expect("error parsing data file");
+    println!("{}", ui.format(&entries));
+    entries.is_working()
 }
 
 trait StatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String;
+    fn format(&self, entries: &EntriesResult) -> String;
 }
 
 struct CLIStatusUI {
@@ -250,14 +286,17 @@ struct CLIStatusUI {
 }
 
 impl StatusUI for CLIStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
-        let status = if working { "WORKING" } else { "NOT working" };
-        if self.with_week {
-            let (start_week, now) = extents::this_week();
-            let minutes = minutes_between(entries, start_week, now);
-            format!("{status} ({minutes})")
+    fn format(&self, entries: &EntriesResult) -> String {
+        let status_str = if entries.is_working() {
+            "WORKING"
         } else {
-            status.to_string()
+            "NOT working"
+        };
+        if self.with_week {
+            let minutes = entries.minutes_between(extents::this_week());
+            format!("{status_str} ({minutes})")
+        } else {
+            status_str.to_string()
         }
     }
 }
@@ -306,11 +345,10 @@ fn show_bitbar_plugin(mut wrapper: &str) {
 struct BitBarStatusUI;
 
 impl StatusUI for BitBarStatusUI {
-    fn format(&self, working: bool, entries: &[TimeEntry]) -> String {
-        let status = if working { "👔" } else { "😴" };
-        let (start_week, now) = extents::this_week();
-        let minutes = minutes_between(entries, start_week, now);
-        format!("{status}{}", week_progress_emoji(minutes))
+    fn format(&self, entries: &EntriesResult) -> String {
+        let status_str = if entries.is_working() { "👔" } else { "😴" };
+        let minutes = entries.minutes_between(extents::this_week());
+        format!("{status_str}{}", week_progress_emoji(minutes))
     }
 }
 
@@ -352,22 +390,20 @@ fn cmd_race(args: RaceArgs) {
 }
 
 fn show_race(previous_weeks: i16, suffix: &str) {
-    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
-    let entries = into_time_entries(entries);
+    let res = query::for_cli(TIME_SOURCE.clone())
+        .all()
+        .expect("error parsing data file");
     let (start_week, now) = extents::this_week();
-    let minutes_this_week = minutes_between(&entries, start_week, now);
+    let minutes_this_week = res.minutes_between((start_week, now));
 
     let mut total_prev_minutes = 0;
     let mut behind = 0;
     let mut ahead = 0;
-    for off in -previous_weeks..0 {
-        let off = Duration::weeks(-off as i64);
-        let wstart = start_week - off;
-        let wnow = now - off;
-        let minutes = minutes_between(&entries, wstart, wnow);
+    for w in res.recent_weeks(previous_weeks) {
+        let minutes = w.minutes_to_date();
         println!(
             "{}: {} {:4} minutes {}{}",
-            wstart.format("%Y-%m-%d"),
+            w.start.format("%Y-%m-%d"),
             week_progress_emoji(minutes),
             minutes,
             race_bars(minutes),

@@ -9,6 +9,7 @@ default-run = "t"
 
 [dependencies]
 gumdrop = "0.8.0"
+rocket = { version = "0.5.1", features = ["json"] }
 term_size = "0.3.2"
 time = "0.2.16"
 
