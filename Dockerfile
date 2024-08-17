@@ -1,9 +1,12 @@
 FROM rust:1-buster AS build
 
 WORKDIR /work
-COPY . .
+COPY Cargo.toml Cargo.toml
+COPY Cargo.lock Cargo.lock
+COPY src        src
 RUN cargo build --release
 
-FROM debian:buster
+FROM debian:buster-slim
 
-COPY --from=build /workdir/target/release/t /usr/bin/t
+COPY public /usr/share/t/wwwroot
+COPY --from=build /work/target/release/t /usr/bin/t
