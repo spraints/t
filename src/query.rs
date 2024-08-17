@@ -37,14 +37,14 @@ impl<TS: TimeSource> Context<TS> {
     fn read_last_entries(&self, n: u64) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
         match &self.tf {
             None => read_last_entries(n, &self.ts),
-            Some(tf) => t_open(&tf)?.read_last_entries(n, &self.ts),
+            Some(tf) => t_open(tf)?.read_last_entries(n, &self.ts),
         }
     }
 
     fn read_entries(&self) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
         match &self.tf {
             None => read_entries(&self.ts),
-            Some(tf) => t_open(&tf)?.read_entries(&self.ts),
+            Some(tf) => t_open(tf)?.read_entries(&self.ts),
         }
     }
 }
@@ -75,7 +75,7 @@ impl EntriesResult {
         minutes_between(&self.entries, range.0, range.1)
     }
 
-    pub fn recent_weeks<'a>(&'a self, previous_weeks: i16) -> Vec<PreviousWeek<'a>> {
+    pub fn recent_weeks(&self, previous_weeks: i16) -> Vec<PreviousWeek<'_>> {
         let (start_week, now) = extents::this_week();
         (0..previous_weeks)
             .rev()

@@ -118,13 +118,13 @@ struct ValidateArgs {
     verbose: bool,
 }
 
-impl Into<(Vec<String>, report::days::Options)> for DaysArgs {
-    fn into(self) -> (Vec<String>, report::days::Options) {
+impl From<DaysArgs> for (Vec<String>, report::days::Options) {
+    fn from(val: DaysArgs) -> Self {
         (
-            self.filters,
+            val.filters,
             report::days::Options {
-                include_totals: self.summary,
-                only_show_per_year: self.annual,
+                include_totals: val.summary,
+                only_show_per_year: val.annual,
             },
         )
     }
@@ -158,13 +158,13 @@ struct WebArgs {
     help: bool,
 }
 
-impl Into<web::Options> for WebArgs {
-    fn into(self) -> web::Options {
-        let static_root = match self.static_path {
+impl From<WebArgs> for web::Options {
+    fn from(val: WebArgs) -> Self {
+        let static_root = match val.static_path {
             None => "public".into(),
             Some(path) => path.into(),
         };
-        let t_data_file = self
+        let t_data_file = val
             .t_data_file
             .or_else(|| t::file::t_data_file().ok())
             .unwrap_or_else(|| "t.csv".to_string())

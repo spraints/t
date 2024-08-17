@@ -12,9 +12,9 @@ fn build_filter(filters: Vec<String>) -> Result<Filter, &'static str> {
     match filters.len() {
         0 => Ok(Filter::None),
         1 => {
-            filters[0].split('-').fold(Ok(Filter::None), |res, part| {
-                res.and_then(|v| v.add_part(part))
-            })
+            filters[0]
+                .split('-')
+                .try_fold(Filter::None, |v, part| v.add_part(part))
             /*
             let mut filter = Filter::None;
             for part in filters[0].split("-") {

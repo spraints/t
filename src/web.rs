@@ -48,7 +48,7 @@ struct WeekStatus {
 #[get("/api/status")]
 fn status(opts: &State<Options>) -> Result<Json<Status>, String> {
     let ctx = query::for_web(opts.t_data_file.clone(), &opts.time_source);
-    let entries = ctx.all().or_else(|e| Err(format!("error: {e}")))?;
+    let entries = ctx.all().map_err(|e| format!("error: {e}"))?;
     Ok(Status {
         working: entries.is_working(),
         last_update: entries.last_update(),

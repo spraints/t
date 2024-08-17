@@ -439,6 +439,7 @@ fn read_for_update<P: AsRef<Path>, TS: TimeSource>(
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(t_data_file)?;
 
     seek_last_entries(&mut f, 2)?;
