@@ -14,7 +14,6 @@ use t::query::{self, EntriesResult};
 use t::report;
 use t::timesource::real_time::DefaultTimeSource;
 use time::{Duration, OffsetDateTime};
-use web::web_main;
 
 const DEFAULT_SPARKS: [char; 7] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇'];
 
@@ -181,8 +180,7 @@ struct NoArgs {
 
 static TIME_SOURCE: DefaultTimeSource = DefaultTimeSource;
 
-#[rocket::main]
-async fn main() {
+fn main() {
     let opts = MainOptions::parse_args_default_or_exit();
     match opts.command {
         None => usage(),
@@ -206,7 +204,7 @@ async fn main() {
             TCommand::Validate(args) => cmd_validate(args),
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
-            TCommand::Web(args) => web_main(args.into()).await,
+            TCommand::Web(args) => web::main(args.into()),
         },
     };
 }

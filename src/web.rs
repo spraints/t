@@ -45,7 +45,11 @@ impl t::timesource::TimeSource for &TimeSource {
     }
 }
 
-pub async fn web_main(opts: Options) {
+pub fn main(opts: Options) {
+    ::rocket::async_main(async { web_main(opts).await });
+}
+
+async fn web_main(opts: Options) {
     let static_root = opts.static_root.clone();
     rocket::build()
         .manage(opts)
