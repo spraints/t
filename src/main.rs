@@ -1,6 +1,9 @@
+mod sync;
 mod web;
 
 use gumdrop::Options;
+use std::convert::TryInto;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::os::unix::process::CommandExt;
@@ -70,6 +73,8 @@ enum TCommand {
     Notes(NoArgs),
     #[options(help = "run a web server")]
     Web(WebArgs),
+    #[options(help = "sync to a web server")]
+    Sync(SyncArgs),
 }
 
 #[derive(Options)]
@@ -173,6 +178,36 @@ impl Into<web::Options> for WebArgs {
 }
 
 #[derive(Options)]
+struct SyncArgs {
+    #[options(free, help = "base URL where data should be synced")]
+    url: Option<String>,
+
+    #[options(help = "verbose")]
+    verbose: bool,
+
+    #[options(help = "where to write output")]
+    log_file: Option<String>,
+
+    #[options(help = "show this message")]
+    help: bool,
+}
+
+impl TryInto<sync::Options> for SyncArgs {
+    type Error = &'static str;
+
+    fn try_into(self) -> Result<sync::Options, Self::Error> {
+        match self.url {
+            None => Err("url must be provided"),
+            Some(url) => Ok(sync::Options {
+                url,
+                verbose: self.verbose,
+                log_file: self.log_file.map(|f| f.into()),
+            }),
+        }
+    }
+}
+
+#[derive(Options)]
 struct NoArgs {
     #[options(help = "show this message")]
     help: bool,
@@ -205,8 +240,19 @@ fn main() {
             TCommand::Now(_) => cmd_now(),
             TCommand::Notes(_) => cmd_notes(),
             TCommand::Web(args) => web::main(args.into()),
+            TCommand::Sync(args) => sync::main(gentle_unwrap(args.try_into())),
         },
     };
+}
+
+fn gentle_unwrap<T, E: Display>(r: Result<T, E>) -> T {
+    match r {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn usage() -> ! {
