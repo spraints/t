@@ -9,9 +9,12 @@ default-run = "t"
 
 [dependencies]
 gumdrop = "0.8.0"
+notify = { version = "6.1.1", default-features = false, features = ["macos_kqueue"] }
+reqwest = "0.12.7"
 rocket = { version = "0.5.1", features = ["json"] }
 term_size = "0.3.2"
 time = "0.2.16"
+tokio = "1.40.0"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
