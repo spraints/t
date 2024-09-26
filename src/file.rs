@@ -378,8 +378,8 @@ mod tests {
     }
 }
 
-pub fn t_data_file() -> Result<String, std::env::VarError> {
-    std::env::var("T_DATA_FILE")
+pub fn t_data_file() -> Result<String, &'static str> {
+    std::env::var("T_DATA_FILE").or(Err("T_DATA_FILE must be set"))
 }
 
 // If there isn't a pending entry, start a new one.
