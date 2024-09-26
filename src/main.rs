@@ -380,10 +380,22 @@ fn show_bitbar_plugin(mut wrapper: &str) {
         );
     }
     println!("---");
+    show_entry();
     show_today();
     show_week();
     println!("---");
     show_race(4, " | font=Monaco");
+}
+
+fn show_entry() {
+    let entries = read_last_entries(1, &TIME_SOURCE).expect("error parsing data file");
+    match entries.last() {
+        Some(Entry::Time(te)) if !te.is_finished() => {
+            println!("Working for {} minutes.", te.minutes(&TIME_SOURCE))
+        }
+        Some(Entry::Note(n)) => println!("{n}"),
+        _ => println!("Not working."),
+    }
 }
 
 struct BitBarStatusUI;
