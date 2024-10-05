@@ -13,7 +13,7 @@ notify = { version = "6.1.1", default-features = false, features = ["macos_kqueu
 reqwest = "0.12.7"
 rocket = { version = "0.5.1", features = ["json"] }
 term_size = "0.3.2"
-time = "0.2.16"
+time = "0.2.16" # This won't be trivial to update https://github.com/spraints/t/pull/13
 tokio = "1.40.0"
 
 [dev-dependencies]
