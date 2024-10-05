@@ -59,6 +59,8 @@ enum TCommand {
     All(NoArgs),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
+    #[options(help = "produce a CSV report (see help for options)")]
+    Csv(CSVArgs),
     #[options(
         help = "show the amount of time off I took per year, with optional number of minutes per full time week"
     )]
@@ -136,6 +138,32 @@ struct RaceArgs {
     count: Option<i16>,
     #[options(help = "show this message")]
     help: bool,
+}
+
+#[derive(Options)]
+struct CSVArgs {
+    #[options(
+        free,
+        parse(try_from_str = "ReportType::try_parse"),
+        help = "type of CSV report to create"
+    )]
+    report_type: Option<ReportType>,
+
+    #[options(help = "show this message")]
+    help: bool,
+}
+
+enum ReportType {
+    Weekly,
+}
+
+impl ReportType {
+    fn try_parse(arg: &str) -> Result<Self, String> {
+        match arg {
+            "weekly" => Ok(Self::Weekly),
+            _ => Err(format!("unrecognized report type {arg:?}")),
+        }
+    }
 }
 
 #[derive(Options)]
@@ -231,7 +259,7 @@ fn main() {
             TCommand::All(_) => cmd_all(),
             //TCommand::Punchcard(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
-            //TCommand::CSV(_) => cmd_csv(),
+            TCommand::Csv(args) => cmd_csv(args),
             //TCommand::SVG(_) => cmd_svg(),
             TCommand::Pto(args) => cmd_pto(args),
             //TCommand::Short(_) => cmd_short(),
@@ -547,6 +575,19 @@ fn cmd_days(args: DaysArgs) {
 
     print!("{}", report::days::prepare(entries, &TIME_SOURCE, opts));
     print_week_legend();
+}
+
+fn cmd_csv(args: CSVArgs) {
+    match args.report_type {
+        None => eprintln!("report type is required"),
+        Some(ReportType::Weekly) => {
+            let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
+            println!("start of week,minutes");
+            for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
+                println!("{},{}", line.start, line.minutes);
+            }
+        }
+    };
 }
 
 fn cmd_pto(args: PtoArgs) {
