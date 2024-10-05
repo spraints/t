@@ -2,6 +2,7 @@ mod sync;
 mod web;
 
 use gumdrop::Options;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::fs::File;
@@ -155,12 +156,14 @@ struct CSVArgs {
 
 enum ReportType {
     Weekly,
+    YearVsYear,
 }
 
 impl ReportType {
     fn try_parse(arg: &str) -> Result<Self, String> {
         match arg {
-            "weekly" => Ok(Self::Weekly),
+            "weekly" | "weeks" | "w" => Ok(Self::Weekly),
+            "yvy" | "year-vs-year" => Ok(Self::YearVsYear),
             _ => Err(format!("unrecognized report type {arg:?}")),
         }
     }
@@ -585,6 +588,51 @@ fn cmd_csv(args: CSVArgs) {
             println!("start of week,minutes");
             for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
                 println!("{},{}", line.start, line.minutes);
+            }
+        }
+        Some(ReportType::YearVsYear) => {
+            let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
+            let mut years = Vec::new();
+            struct Year {
+                year: i32,
+                weeks: HashMap<u8, i64>,
+            }
+            let mut cur_year: Option<Year> = None;
+            for line in report::all::calc(entries, &DEFAULT_SPARKS, &TIME_SOURCE) {
+                let mut yy = match (line.start.year(), cur_year) {
+                    (y, Some(yy)) if y == yy.year => yy,
+                    (_, None) => Year {
+                        year: line.start.year(),
+                        weeks: HashMap::new(),
+                    },
+                    (_, Some(yy)) => {
+                        years.push(yy);
+                        Year {
+                            year: line.start.year(),
+                            weeks: HashMap::new(),
+                        }
+                    }
+                };
+                yy.weeks.insert(line.start.week(), line.minutes);
+                cur_year = Some(yy);
+            }
+            if let Some(yy) = cur_year.take() {
+                years.push(yy);
+            }
+            print!("week of year");
+            for yy in &years {
+                print!(",{}", yy.year);
+            }
+            println!();
+            for week_num in 1..=53 {
+                print!("{week_num}");
+                for yy in &years {
+                    match yy.weeks.get(&week_num) {
+                        None => print!(","),
+                        Some(min) => print!(",{min}"),
+                    };
+                }
+                println!();
             }
         }
     };
