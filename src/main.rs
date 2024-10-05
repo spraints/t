@@ -496,7 +496,12 @@ fn show_race(previous_weeks: i16, suffix: &str) {
 }
 
 fn race_bars(n: i64) -> String {
-    "▇".repeat((n / 60) as usize)
+    let bar_count = n / 60;
+    if bar_count > 40 {
+        "▇".repeat(40) + "..."
+    } else {
+        "▇".repeat(bar_count as usize)
+    }
 }
 
 fn cmd_all() {
