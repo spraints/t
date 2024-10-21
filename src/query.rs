@@ -75,6 +75,10 @@ impl EntriesResult {
         minutes_between(&self.entries, range.0, range.1)
     }
 
+    pub fn between(&self, range: (time::OffsetDateTime, time::OffsetDateTime)) -> Vec<TimeEntry> {
+        entries_between(&self.entries, range.0, range.1)
+    }
+
     pub fn recent_weeks(&self, previous_weeks: i16) -> Vec<PreviousWeek<'_>> {
         let (start_week, now) = extents::this_week();
         (0..previous_weeks)
@@ -111,4 +115,16 @@ fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDat
     entries
         .iter()
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
+}
+
+fn entries_between(
+    entries: &[TimeEntry],
+    start: OffsetDateTime,
+    stop: OffsetDateTime,
+) -> Vec<TimeEntry> {
+    entries
+        .iter()
+        .filter(|e| e.minutes_between(start, stop) > 0)
+        .cloned()
+        .collect()
 }

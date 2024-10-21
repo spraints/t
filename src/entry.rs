@@ -274,6 +274,14 @@ impl Time {
     fn month(&self) -> u8 {
         self.wrapped.month()
     }
+
+    pub fn date(&self) -> time::Date {
+        self.wrapped.date()
+    }
+
+    pub fn time(&self) -> time::Time {
+        self.wrapped.time()
+    }
 }
 
 impl Display for Time {

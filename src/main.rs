@@ -84,8 +84,27 @@ enum TCommand {
 struct StatusArgs {
     #[options(help = "also calculate the time worked this week so far")]
     with_week: bool,
+    #[options(help = "also list entries")]
+    list: Option<StatusTimePeriod>,
     #[options(help = "show this message")]
     help: bool,
+}
+
+enum StatusTimePeriod {
+    Today,
+    Week,
+}
+
+impl std::str::FromStr for StatusTimePeriod {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "t" | "day" | "today" => Ok(Self::Today),
+            "w" | "week" => Ok(Self::Week),
+            _ => Err(format!("expected 'today' or 'week' but got {s:?}")),
+        }
+    }
 }
 
 #[derive(Options)]
@@ -358,6 +377,7 @@ trait StatusUI {
 
 struct CLIStatusUI {
     with_week: bool,
+    list: Option<StatusTimePeriod>,
 }
 
 impl StatusUI for CLIStatusUI {
@@ -367,12 +387,42 @@ impl StatusUI for CLIStatusUI {
         } else {
             "NOT working"
         };
+        let list = match self.list {
+            None => "".into(),
+            Some(StatusTimePeriod::Today) => self.list_entries(entries.between(extents::today())),
+            Some(StatusTimePeriod::Week) => {
+                self.list_entries(entries.between(extents::this_week()))
+            }
+        };
         if self.with_week {
             let minutes = entries.minutes_between(extents::this_week());
-            format!("{status_str} ({minutes})")
+            format!("{status_str} ({minutes}){list}")
         } else {
-            status_str.to_string()
+            format!("{status_str}{list}")
         }
+    }
+}
+
+impl CLIStatusUI {
+    fn list_entries(&self, entries: Vec<TimeEntry>) -> std::borrow::Cow<str> {
+        if entries.is_empty() {
+            return "\n(no entries)".into();
+        }
+        let mut cur_date = None;
+        let mut res = "\n".to_string();
+        for e in entries {
+            let ed = e.start.date();
+            if Some(ed) != cur_date {
+                res.push_str(&format!("\n{ed}:"));
+                cur_date = Some(ed);
+            }
+            res.push_str(&format!("\n  {}", e.start.time()));
+            match e.stop {
+                None => res.push_str(" - (still working)"),
+                Some(t) => res.push_str(&format!(" - {}", t.time())),
+            };
+        }
+        res.into()
     }
 }
 
@@ -380,6 +430,7 @@ impl From<StatusArgs> for CLIStatusUI {
     fn from(args: StatusArgs) -> Self {
         CLIStatusUI {
             with_week: args.with_week,
+            list: args.list,
         }
     }
 }
