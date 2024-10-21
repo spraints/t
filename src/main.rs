@@ -409,11 +409,11 @@ impl CLIStatusUI {
             return "\n(no entries)".into();
         }
         let mut cur_date = None;
-        let mut res = "\n".to_string();
+        let mut res = "".to_string();
         for e in entries {
             let ed = e.start.date();
             if Some(ed) != cur_date {
-                res.push_str(&format!("\n{ed}:"));
+                res.push_str(&format!("\n\n{ed}:"));
                 cur_date = Some(ed);
             }
             res.push_str(&format!("\n  {}", e.start.time()));
