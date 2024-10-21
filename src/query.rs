@@ -124,7 +124,7 @@ fn entries_between(
 ) -> Vec<TimeEntry> {
     entries
         .iter()
-        .filter(|e| e.minutes_between(start, stop) > 0)
+        .filter(|e| e.overlaps(start, stop))
         .cloned()
         .collect()
 }

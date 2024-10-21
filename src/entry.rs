@@ -176,6 +176,14 @@ impl TimeEntry {
             .map(|st| (ts.now() - st.wrapped).whole_minutes())
     }
 
+    pub fn overlaps(&self, from: OffsetDateTime, to: OffsetDateTime) -> bool {
+        match &self.stop {
+            Some(stop) if stop.wrapped < from => false,
+            Some(stop) if stop.wrapped < to => true,
+            _ => self.start.wrapped < to,
+        }
+    }
+
     pub fn minutes_between(&self, from: OffsetDateTime, to: OffsetDateTime) -> i64 {
         if self.start.wrapped > to {
             return 0;
