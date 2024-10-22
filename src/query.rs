@@ -117,7 +117,7 @@ fn minutes_between(entries: &[TimeEntry], start: OffsetDateTime, stop: OffsetDat
         .fold(0, |sum, entry| sum + entry.minutes_between(start, stop))
 }
 
-fn entries_between(
+pub fn entries_between(
     entries: &[TimeEntry],
     start: OffsetDateTime,
     stop: OffsetDateTime,

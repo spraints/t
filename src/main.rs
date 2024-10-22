@@ -8,6 +8,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::os::unix::process::CommandExt;
+use std::str::FromStr;
 use t::entry::into_time_entries;
 use t::entry::Entry;
 use t::entry::TimeEntry;
@@ -48,6 +49,8 @@ enum TCommand {
     Edit(NoArgs),
     #[options(help = "show current status")]
     Status(StatusArgs),
+    #[options(help = "list times worked on a given day or during a range of days")]
+    List(ListArgs),
     #[options(help = "generate output for bitbar")]
     Bitbar(BitBarArgs),
     #[options(help = "show time worked today")]
@@ -84,26 +87,32 @@ enum TCommand {
 struct StatusArgs {
     #[options(help = "also calculate the time worked this week so far")]
     with_week: bool,
-    #[options(help = "also list entries")]
-    list: Option<StatusTimePeriod>,
     #[options(help = "show this message")]
     help: bool,
 }
 
-enum StatusTimePeriod {
-    Today,
-    Week,
+#[derive(Options)]
+struct ListArgs {
+    #[options(free, help = "start date of listing (optional, default is today)")]
+    start: Option<DateArg>,
+    #[options(free, help = "end date of listing (optional, default is one day)")]
+    stop: Option<DateArg>,
+    #[options(help = "show this message")]
+    help: bool,
 }
 
-impl std::str::FromStr for StatusTimePeriod {
-    type Err = String;
+struct DateArg {
+    date: time::Date,
+}
+
+impl FromStr for DateArg {
+    type Err = time::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "t" | "day" | "today" => Ok(Self::Today),
-            "w" | "week" => Ok(Self::Week),
-            _ => Err(format!("expected 'today' or 'week' but got {s:?}")),
-        }
+        eprintln!("parsing {s:?}");
+        Ok(Self {
+            date: time::Date::parse(s, "%F")?,
+        })
     }
 }
 
@@ -274,6 +283,7 @@ fn main() {
             TCommand::Stop(_) => cmd_stop(),
             TCommand::Edit(_) => cmd_edit(),
             TCommand::Status(args) => cmd_status(args),
+            TCommand::List(args) => cmd_list(args),
             TCommand::Bitbar(args) => cmd_bitbar(args),
             TCommand::Today(_) => cmd_today(),
             TCommand::Week(_) => cmd_week(),
@@ -377,7 +387,6 @@ trait StatusUI {
 
 struct CLIStatusUI {
     with_week: bool,
-    list: Option<StatusTimePeriod>,
 }
 
 impl StatusUI for CLIStatusUI {
@@ -387,42 +396,12 @@ impl StatusUI for CLIStatusUI {
         } else {
             "NOT working"
         };
-        let list = match self.list {
-            None => "".into(),
-            Some(StatusTimePeriod::Today) => self.list_entries(entries.between(extents::today())),
-            Some(StatusTimePeriod::Week) => {
-                self.list_entries(entries.between(extents::this_week()))
-            }
-        };
         if self.with_week {
             let minutes = entries.minutes_between(extents::this_week());
-            format!("{status_str} ({minutes}){list}")
+            format!("{status_str} ({minutes})")
         } else {
-            format!("{status_str}{list}")
+            status_str.to_string()
         }
-    }
-}
-
-impl CLIStatusUI {
-    fn list_entries(&self, entries: Vec<TimeEntry>) -> std::borrow::Cow<str> {
-        if entries.is_empty() {
-            return "\n(no entries)".into();
-        }
-        let mut cur_date = None;
-        let mut res = "".to_string();
-        for e in entries {
-            let ed = e.start.date();
-            if Some(ed) != cur_date {
-                res.push_str(&format!("\n\n{ed}:"));
-                cur_date = Some(ed);
-            }
-            res.push_str(&format!("\n  {}", e.start.time()));
-            match e.stop {
-                None => res.push_str(" - (still working)"),
-                Some(t) => res.push_str(&format!(" - {}", t.time())),
-            };
-        }
-        res.into()
     }
 }
 
@@ -430,9 +409,51 @@ impl From<StatusArgs> for CLIStatusUI {
     fn from(args: StatusArgs) -> Self {
         CLIStatusUI {
             with_week: args.with_week,
-            list: args.list,
         }
     }
+}
+
+fn cmd_list(args: ListArgs) {
+    let ListArgs {
+        start,
+        stop,
+        help: _,
+    } = args;
+
+    let now = OffsetDateTime::now_local();
+
+    let start = start.map(|s| s.date).unwrap_or_else(|| now.date());
+    let stop = stop.map(|s| s.date).unwrap_or(start + Duration::day());
+
+    let entries = read_time_entries(&TIME_SOURCE).unwrap();
+    let entries = query::entries_between(
+        &entries,
+        start.midnight().assume_offset(now.offset()),
+        stop.midnight().assume_offset(now.offset()),
+    );
+
+    println!("{}", list_entries(entries));
+}
+
+fn list_entries(entries: Vec<TimeEntry>) -> String {
+    if entries.is_empty() {
+        return "\n(no entries)".into();
+    }
+    let mut cur_date = None;
+    let mut res = "".to_string();
+    for e in entries {
+        let ed = e.start.date();
+        if Some(ed) != cur_date {
+            res.push_str(&format!("\n\n{ed}:"));
+            cur_date = Some(ed);
+        }
+        res.push_str(&format!("\n  {}", e.start.time()));
+        match e.stop {
+            None => res.push_str(" - (still working)"),
+            Some(t) => res.push_str(&format!(" - {}", t.time())),
+        };
+    }
+    res
 }
 
 fn cmd_bitbar(args: BitBarArgs) {
