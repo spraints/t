@@ -50,7 +50,7 @@ impl Options {
         !self.only_show_per_year
     }
     fn show_monthly_total(&self) -> bool {
-        !self.only_show_per_year
+        self.include_totals && !self.only_show_per_year
     }
     fn show_yearly_total(&self) -> bool {
         self.include_totals || self.only_show_per_year
