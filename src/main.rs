@@ -355,11 +355,11 @@ fn cmd_edit() -> ! {
         "".to_owned()
     };
 
-    let cmd = format!("{editor} {args} \"$@\"; {t:?} validate");
+    let cmd = format!("echo Editing with {editor}...; {editor} {args} \"$@\"; echo Validating {path}...; {t:?} validate");
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
-            .arg("-xc")
+            .arg("-c")
             .arg(cmd)
             .arg(editor)
             .arg(path)
