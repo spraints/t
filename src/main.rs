@@ -555,10 +555,19 @@ fn show_race(previous_weeks: i16, suffix: &str) {
     let (start_week, now) = extents::this_week();
     let minutes_this_week = res.minutes_between((start_week, now));
 
+    println!(
+        "{}: {} {:4} minutes {}{}",
+        start_week.format("%Y-%m-%d"),
+        week_progress_emoji(minutes_this_week),
+        minutes_this_week,
+        race_bars(minutes_this_week),
+        suffix,
+    );
+
     let mut total_prev_minutes = 0;
     let mut behind = 0;
     let mut ahead = 0;
-    for w in res.recent_weeks(previous_weeks) {
+    for w in res.recent_weeks(previous_weeks).iter().rev() {
         let minutes = w.minutes_to_date();
         println!(
             "{}: {} {:4} minutes {}{}",
@@ -587,14 +596,6 @@ fn show_race(previous_weeks: i16, suffix: &str) {
             cur - (prev / c as i64)
         ),
     };
-    println!(
-        "{}: {} {:4} minutes {}{}",
-        start_week.format("%Y-%m-%d"),
-        week_progress_emoji(minutes_this_week),
-        minutes_this_week,
-        race_bars(minutes_this_week),
-        suffix,
-    );
     println!("{}", summary);
 }
 
