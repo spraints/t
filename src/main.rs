@@ -145,6 +145,8 @@ struct DaysArgs {
 struct ValidateArgs {
     #[options(help = "Number of times to validate (useful for benchmarking)")]
     count: Option<usize>,
+    #[options(help = "Make the error BIGGER")]
+    loud: bool,
     #[options(help = "Show some extra information about the file")]
     verbose: bool,
 }
@@ -355,7 +357,7 @@ fn cmd_edit() -> ! {
         "".to_owned()
     };
 
-    let cmd = format!("echo Editing with {editor}...; {editor} {args} \"$@\"; echo Validating {path}...; {t:?} validate");
+    let cmd = format!("echo Editing with {editor}...; {editor} {args} \"$@\"; echo Validating {path}...; {t:?} validate --loud");
     eprintln!(
         "error: {}",
         std::process::Command::new("sh")
@@ -723,24 +725,38 @@ fn cmd_path() {
 }
 
 fn cmd_validate(args: ValidateArgs) {
-    let ValidateArgs { count, verbose } = args;
-    for i in 0..count.unwrap_or(1) {
-        do_validate(verbose && i == 0);
+    let ValidateArgs {
+        count,
+        mut verbose,
+        mut loud,
+    } = args;
+    for _ in 0..count.unwrap_or(1) {
+        if !do_validate(verbose, loud) {
+            std::process::exit(1);
+        }
+        // If there's a count, we're probably benchmarking and don't need lots of output. Stop
+        // emitting as much output after the first time.
+        verbose = false;
+        loud = false;
     }
 }
 
-fn do_validate(verbose: bool) {
+fn do_validate(verbose: bool, loud: bool) -> bool {
     let mut last_time_entry = None;
     let mut last_entry_is_finished = true;
     let mut count = 0;
+    let mut state = Validation::Good;
+    let prefix = if loud { "!!! " } else { "" };
     for (n, entry) in read_entries(&TIME_SOURCE).unwrap().into_iter().enumerate() {
         if !last_entry_is_finished {
-            println!("{}: previous entry is not finished", n);
+            state = state.bad(loud);
+            println!("{prefix}{n}: previous entry is not finished");
             last_entry_is_finished = true;
         }
         if let Entry::Time(te) = entry {
             if let Err(err) = te.is_valid_after(&last_time_entry) {
-                println!("{}: {}", n, err);
+                state = state.bad(loud);
+                println!("{prefix}{n}: {err}");
             }
             last_time_entry = Some(te);
         }
@@ -748,6 +764,34 @@ fn do_validate(verbose: bool) {
     }
     if verbose {
         println!("Checked {count} lines.");
+    }
+    state.ok()
+}
+
+enum Validation {
+    Good,
+    Bad,
+}
+
+impl Validation {
+    fn bad(self, loud: bool) -> Self {
+        match self {
+            Validation::Good => {
+                if loud {
+                    println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    println!("!!! Validation failed!");
+                }
+            }
+            _ => {}
+        };
+        Validation::Bad
+    }
+
+    fn ok(self) -> bool {
+        match self {
+            Validation::Good => true,
+            Validation::Bad => false,
+        }
     }
 }
 
