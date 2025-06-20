@@ -2,6 +2,7 @@
 
 set -e
 set -o nounset
+set -o pipefail
 
 COMMAND="${COMMAND:-t}"
 ROOT="$(cd "$(dirname "$0")"; pwd -P)"
@@ -93,8 +94,14 @@ fixt 2013-11.csv \
   assert_diff 2013-11.pto -- pto
 
 echo T edit
-TODAY="$(date +%Y-%m-%d)"
-EDITOR="(echo $TODAY 00:00,$TODAY 01:00; echo $TODAY 01:45, $TODAY 02:55) | tee" \
+cat <<EOF > "${TMPDIR}/editor.rb"
+File.open(ARGV[0], "w") do |f|
+  today = Time.now.strftime("%Y-%m-%d")
+  f.puts "#{today} 00:00,#{today} 01:00"
+  f.puts "#{today} 01:45,#{today} 02:55"
+end
+EOF
+EDITOR="ruby ${TMPDIR}/editor.rb" \
   $COMMAND edit >/dev/null
 echo PASS
 
