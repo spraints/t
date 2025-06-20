@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script checks that the Ruby and Rust programs behave the same.
 
 set -e
 set -o nounset
