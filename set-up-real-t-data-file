@@ -1,0 +1,3 @@
+# Usage: source set-up-real-t-data-file
+#export T_DATA_FILE=${HOME}/.data/t.csv
+export T_DATA_FILE=$(t path)
