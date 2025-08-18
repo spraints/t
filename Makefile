@@ -6,6 +6,10 @@ default: test release
 .PHONY: release
 release: target/release/t
 
+.PHONY: install
+install: release
+	cp target/release/t ~/.bin/t
+
 .PHONY: test
 test: cargo-test rspec integration-ruby integration-rust
 
