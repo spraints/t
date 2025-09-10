@@ -326,7 +326,10 @@ fn cmd_start() {
     cmd_validate(Default::default());
     match start_new_entry(&TIME_SOURCE).unwrap() {
         None => println!("Starting work."),
-        Some(minutes) => println!("You already started working, {} minutes ago!", minutes),
+        Some(minutes) => println!(
+            "WARNING!!! You already started working, {} minutes ago!",
+            minutes
+        ),
     };
 }
 
