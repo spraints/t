@@ -58,9 +58,11 @@ enum TCommand {
     #[options(help = "show time worked this week")]
     Week(NoArgs),
     #[options(help = "compare my current progress this week against previous weeks")]
-    Race(RaceArgs),
+    Race(WeekCount),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+    #[options(help = "show info about the length of breaks (default shows all weeks)")]
+    Breaks(WeekCount),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
     #[options(help = "produce a CSV report (see help for options)")]
@@ -164,7 +166,7 @@ impl From<DaysArgs> for (Vec<String>, report::days::Options) {
 }
 
 #[derive(Options)]
-struct RaceArgs {
+struct WeekCount {
     #[options(help = "number of previous weeks to consider")]
     count: Option<i16>,
     #[options(help = "show this message")]
@@ -291,6 +293,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::Race(args) => cmd_race(args),
             TCommand::All(_) => cmd_all(),
+            TCommand::Breaks(args) => cmd_breaks(args),
             //TCommand::Punchcard(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
             TCommand::Csv(args) => cmd_csv(args),
@@ -548,8 +551,30 @@ fn show_week() {
     );
 }
 
-fn cmd_race(args: RaceArgs) {
-    let RaceArgs { count, help: _ } = args;
+fn cmd_breaks(args: WeekCount) {
+    let WeekCount { count, help: _ } = args;
+    let (start_week, now) = extents::this_week();
+    let entries = read_entries(&TIME_SOURCE).expect("error parsing data file");
+    let entries = into_time_entries(entries);
+    let entries = match count {
+        Some(c) => {
+            let earliest = start_week - Duration::weeks(-c as i64);
+            entries
+                .into_iter()
+                .filter(|e| e.is_after(earliest))
+                .collect()
+        }
+        None => entries,
+    };
+    println!(
+        "todo: show stats from {} entries (force things to be used {})",
+        entries.len(),
+        now
+    );
+}
+
+fn cmd_race(args: WeekCount) {
+    let WeekCount { count, help: _ } = args;
     show_race(count.unwrap_or(1), "");
 }
 
