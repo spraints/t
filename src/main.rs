@@ -624,6 +624,10 @@ fn cmd_all() {
                 line.segments, analysis.min, analysis.mean, analysis.max, analysis.stddev
             );
             let mut first = true;
+            // sparks show each work session, grouped by day.
+            // for example, ▁▂▃▃▁▂  ▇▇  ▂  ▁ shows 4 days.
+            // the first day has many shorter sessions. the second has
+            // two longer sessions.
             for day in analysis.sparks {
                 if !day.is_empty() {
                     if !first {
