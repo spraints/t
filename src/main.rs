@@ -61,6 +61,8 @@ enum TCommand {
     Race(RaceArgs),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+    #[options(help = "(same as punchcard)")]
+    Pc(NoArgs),
     #[options(help = "show visualization of work across all weeks")]
     Punchcard(NoArgs),
     #[options(help = "show a table of time worked per day")]
@@ -293,7 +295,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::Race(args) => cmd_race(args),
             TCommand::All(_) => cmd_all(),
-            TCommand::Punchcard(_) => cmd_punchcard(),
+            TCommand::Punchcard(_) | TCommand::Pc(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
             TCommand::Csv(args) => cmd_csv(args),
             //TCommand::SVG(_) => cmd_svg(),
