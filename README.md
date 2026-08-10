@@ -2,7 +2,7 @@
 
 ## Installation
 
-    $ make
+    $ make install
 
 ## Usage
 
