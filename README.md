@@ -2,7 +2,7 @@
 
 ## Installation
 
-    $ gem install t
+    $ make
 
 ## Usage
 
@@ -26,3 +26,8 @@
     (opens $EDITOR with the csv file)
 
 Your data is stored in `$HOME/.t.csv`.
+
+## History
+
+This started as a Ruby tool but was migrated to Rust in in 2020. View the old
+Ruby code at https://github.com/spraints/t/tree/end-of-ruby.

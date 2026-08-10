@@ -11,28 +11,19 @@ install: release
 	cp target/release/t ~/.bin/t
 
 .PHONY: test
-test: cargo-test rspec integration-ruby integration-rust
+test: cargo-test integration-rust
 
 .PHONY: bench
 bench: target/debug/bench-parse target/debug/bench-sum
 	bash bench.sh
 
-
 .PHONY: cargo-test
 cargo-test:
 	cargo test
 
-.PHONY: rspec
-rspec:
-	bin/rspec
-
-.PHONY: integration-ruby
-integration-ruby:
-	time env COMMAND=bin/t MODE=ruby bash test.sh
-
-.PHONY:integration-rust
+.PHONY: integration-rust
 integration-rust: target/debug/t
-	time env COMMAND=target/debug/t MODE=rust bash test.sh
+	time env COMMAND=target/debug/t bash test.sh
 
 target/debug/t: $(SRCS) Cargo.toml Cargo.lock
 	cargo build

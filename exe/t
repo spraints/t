@@ -1,5 +1,0 @@
-#!/usr/bin/env ruby
-
-require 't/cli'
-
-T::CLI.run! ARGV
