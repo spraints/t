@@ -61,6 +61,8 @@ enum TCommand {
     Race(RaceArgs),
     #[options(help = "show spark graph of all entries")]
     All(NoArgs),
+    #[options(help = "show visualization of work across all weeks")]
+    Punchcard(NoArgs),
     #[options(help = "show a table of time worked per day")]
     Days(DaysArgs),
     #[options(help = "produce a CSV report (see help for options)")]
@@ -291,7 +293,7 @@ fn main() {
             TCommand::Week(_) => cmd_week(),
             TCommand::Race(args) => cmd_race(args),
             TCommand::All(_) => cmd_all(),
-            //TCommand::Punchcard(_) => cmd_punchcard(),
+            TCommand::Punchcard(_) => cmd_punchcard(),
             TCommand::Days(args) => cmd_days(args),
             TCommand::Csv(args) => cmd_csv(args),
             //TCommand::SVG(_) => cmd_svg(),
@@ -641,6 +643,25 @@ fn cmd_all() {
             }
         }
         println!();
+    }
+    print_week_legend();
+}
+
+fn cmd_punchcard() {
+    let width = match term_size::dimensions() {
+        None => 80,
+        Some((w, _)) => w,
+    };
+    let min_width = 20 + 2 + 7;
+    let punch_width = if width > min_width {
+        width - min_width
+    } else {
+        5
+    };
+    let entries = read_time_entries(&TIME_SOURCE).expect("error parsing data file");
+    for line in report::punchcard::calc(entries, punch_width, ' ', &DEFAULT_SPARKS, &TIME_SOURCE) {
+        let punches: String = line.punches.iter().collect();
+        println!("{}  {:4} min  {}", line.start, line.minutes, punches);
     }
     print_week_legend();
 }
