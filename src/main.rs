@@ -803,15 +803,10 @@ enum Validation {
 
 impl Validation {
     fn bad(self, loud: bool) -> Self {
-        match self {
-            Validation::Good => {
-                if loud {
-                    println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                    println!("!!! Validation failed!");
-                }
-            }
-            _ => {}
-        };
+        if matches!(self, Validation::Good) && loud {
+            println!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            println!("!!! Validation failed!");
+        }
         Validation::Bad
     }
 
